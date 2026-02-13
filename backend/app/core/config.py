@@ -34,8 +34,9 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     
     # Database
-    # Format: postgresql+asyncpg://user:password@host:port/dbname
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/repfit"
+    # For PostgreSQL: postgresql+asyncpg://user:password@host:port/dbname
+    # For SQLite (testing): sqlite+aiosqlite:///./repfit.db
+    DATABASE_URL: str = "sqlite+aiosqlite:///./repfit.db"
     
     # JWT Authentication
     JWT_SECRET: str = "your-super-secret-key-change-in-production"

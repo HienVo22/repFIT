@@ -24,13 +24,21 @@ from app.core.config import get_settings
 settings = get_settings()
 
 # Create async engine with connection pooling
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,  # Log SQL queries in debug mode
-    pool_size=5,          # Maintain 5 connections in the pool
-    max_overflow=10,      # Allow up to 10 additional connections under load
-    pool_pre_ping=True,   # Verify connections before use (handle stale connections)
-)
+# SQLite doesn't support pool_size/max_overflow, so we configure conditionally
+if settings.DATABASE_URL.startswith("sqlite"):
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.DEBUG,
+        connect_args={"check_same_thread": False},  # Required for SQLite
+    )
+else:
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.DEBUG,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+    )
 
 # Session factory - creates new sessions for each request
 # 🎓 INTERVIEW: This is the Factory Pattern - creates objects without

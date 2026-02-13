@@ -19,8 +19,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.core.database import engine
+from app.core.database import engine, Base
 from app.api.v1.router import api_router
+# Import all models to register them with Base.metadata
+from app.models import User, Routine, RoutineExercise, DailyLog, WorkoutSession, CompletedSet, NutritionLog
 
 settings = get_settings()
 
@@ -29,30 +31,21 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
-    
-    🎓 INTERVIEW CONCEPT: Resource Management
-    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    The lifespan context manager handles:
-    - Startup: Initialize resources (DB pool, cache connections)
-    - Shutdown: Clean up resources (close connections)
-    
-    This is crucial for:
-    1. Preventing resource leaks
-    2. Graceful shutdown (finish pending requests)
-    3. Connection pool management
-    
-    The `yield` separates startup from shutdown code.
+    Handles startup (create tables) and shutdown (close connections).
     """
     # Startup
-    print(f"🚀 Starting {settings.APP_NAME}")
-    # Database pool is created lazily by SQLAlchemy
-    # Add any other startup logic here (Redis connection, etc.)
+    print(f"Starting {settings.APP_NAME}")
+    
+    # Create all tables (useful for SQLite testing)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("Database tables created")
     
     yield  # Application runs here
     
     # Shutdown
-    print(f"👋 Shutting down {settings.APP_NAME}")
-    await engine.dispose()  # Close all DB connections
+    print(f"Shutting down {settings.APP_NAME}")
+    await engine.dispose()
 
 
 # Create FastAPI application
