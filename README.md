@@ -22,8 +22,6 @@ A mobile application combining automated strength progression protocols with nut
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
 | Mobile | React Native, Expo SDK 50+, TypeScript |
 | State | Zustand (global), TanStack Query (server) |
 | Backend | FastAPI, Python 3.11+ |
@@ -104,25 +102,6 @@ Mobile: Create `.env` in mobile folder:
 EXPO_PUBLIC_API_URL=http://YOUR_LOCAL_IP:8000/api/v1
 ```
 
-Note: Replace YOUR_LOCAL_IP with your computer's local IP address (not localhost) for the mobile app to connect to the backend.
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/v1/auth/register | Register new user |
-| POST | /api/v1/auth/login | Login and get tokens |
-| POST | /api/v1/auth/refresh | Refresh access token |
-| GET | /api/v1/users/me | Get current user profile |
-| PATCH | /api/v1/users/me | Update user profile |
-| GET | /api/v1/routines | List all routines |
-| POST | /api/v1/routines | Create routine |
-| GET | /api/v1/routines/{id} | Get routine details |
-| PATCH | /api/v1/routines/{id} | Update routine |
-| DELETE | /api/v1/routines/{id} | Delete routine |
-| POST | /api/v1/routines/{id}/exercises | Add exercise to routine |
-| PATCH | /api/v1/routines/{id}/exercises/{eid} | Update exercise |
-| DELETE | /api/v1/routines/{id}/exercises/{eid} | Delete exercise |
 
 ## License
 
