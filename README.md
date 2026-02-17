@@ -4,21 +4,6 @@ A mobile application combining automated strength progression protocols with nut
 
 ## Features
 
-### Implemented
-- User authentication (register, login, JWT tokens)
-- Workout routine management (create, read, update, delete)
-- Exercise management within routines
-- Dashboard with calendar view
-- Active workout session with timer and set tracking
-- Nutrition logging interface with macro display
-- User profile management
-
-### Planned
-- Workout session API (save completed workouts to database)
-- Natural language nutrition parsing via USDA API
-- Historical workout data lookup for progressive overload
-- Calendar data aggregation (workout and nutrition indicators)
-- Redis caching for external API calls
 
 ## Tech Stack
 
