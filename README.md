@@ -2,9 +2,6 @@
 
 A mobile application combining automated strength progression protocols with nutrition tracking. Built with a decoupled client-server architecture where a Python backend serves data to a React Native mobile client.
 
-## Features
-
-
 ## Tech Stack
 
 | Mobile | React Native, Expo SDK 50+, TypeScript |
