@@ -1,21 +1,4 @@
-/**
- * TypeScript interfaces matching backend Pydantic schemas.
- * 
- * 🎓 INTERVIEW CONCEPT: End-to-End Type Safety
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * These types mirror the Pydantic schemas exactly.
- * This ensures:
- * 1. Compile-time errors if API contract changes
- * 2. IDE autocomplete for API responses
- * 3. Self-documenting code
- * 
- * In a larger project, you might generate these automatically
- * from OpenAPI spec using tools like openapi-typescript.
- */
-
-// ============================================================
-// User Types
-// ============================================================
+// User types
 
 export interface User {
   id: number;
@@ -24,7 +7,7 @@ export interface User {
   full_name: string | null;
   is_active: boolean;
   is_verified: boolean;
-  created_at: string; // ISO date string
+  created_at: string;
 }
 
 export interface UserCreate {
@@ -52,17 +35,15 @@ export interface AuthTokens {
   token_type: string;
 }
 
-// ============================================================
-// Routine Types
-// ============================================================
+// Routine types
 
-export type DayOfWeek = 
-  | 'monday' 
-  | 'tuesday' 
-  | 'wednesday' 
-  | 'thursday' 
-  | 'friday' 
-  | 'saturday' 
+export type DayOfWeek =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
   | 'sunday';
 
 export interface RoutineExercise {
@@ -112,9 +93,25 @@ export interface RoutineListItem {
   created_at: string;
 }
 
-// ============================================================
-// Workout Session Types
-// ============================================================
+// Workout session types
+
+export interface CompletedSetData {
+  exercise_name: string;
+  set_number: number;
+  reps_completed: number;
+  weight_used: number | null;
+  is_completed: boolean;
+}
+
+export interface WorkoutSessionCreate {
+  routine_id: number | null;
+  routine_name: string;
+  started_at: string;
+  ended_at: string;
+  duration_seconds: number;
+  notes?: string;
+  completed_sets: CompletedSetData[];
+}
 
 export interface CompletedSet {
   id: number;
@@ -140,9 +137,17 @@ export interface WorkoutSession {
   completed_sets: CompletedSet[];
 }
 
-// ============================================================
-// Nutrition Types
-// ============================================================
+// Nutrition types
+
+export interface NutritionLogCreate {
+  raw_input: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g?: number;
+  meal_type?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+}
 
 export interface NutritionLog {
   id: number;
@@ -157,19 +162,21 @@ export interface NutritionLog {
   logged_at: string;
 }
 
-export interface NutritionInput {
-  raw_input: string;
-  meal_type?: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export interface DailyNutritionSummary {
+  date: string;
+  total_calories: number;
+  total_protein_g: number;
+  total_carbs_g: number;
+  total_fat_g: number;
+  logs: NutritionLog[];
 }
 
-// ============================================================
-// Daily Log Types
-// ============================================================
+// Daily log types
 
 export interface DailyLog {
   id: number;
   user_id: number;
-  log_date: string; // YYYY-MM-DD
+  log_date: string;
   notes: string | null;
   workout_sessions: WorkoutSession[];
   nutrition_logs: NutritionLog[];
@@ -177,9 +184,7 @@ export interface DailyLog {
   updated_at: string;
 }
 
-// ============================================================
-// Calendar Types (for react-native-calendars)
-// ============================================================
+// Calendar types
 
 export interface CalendarMarking {
   marked: boolean;
@@ -190,9 +195,13 @@ export interface CalendarMarking {
 
 export type MarkedDates = Record<string, CalendarMarking>;
 
-// ============================================================
-// API Response Types
-// ============================================================
+export interface CalendarDay {
+  date: string;
+  has_workout: boolean;
+  has_nutrition: boolean;
+}
+
+// API types
 
 export interface ApiError {
   detail: string;

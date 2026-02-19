@@ -1,16 +1,3 @@
-/**
- * Login Screen.
- * 
- * 🎓 INTERVIEW CONCEPT: Form Handling in React Native
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * This demonstrates:
- * 1. Controlled inputs with useState
- * 2. Form validation
- * 3. Loading states during submission
- * 4. Error handling and display
- * 5. Navigation after successful login
- */
-
 import { useState } from 'react';
 import {
   View,
@@ -32,11 +19,10 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { setUser } = useAuthStore();
-  
+
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: async () => {
-      // Fetch user profile after successful login
       const user = await getCurrentUser();
       setUser(user);
       router.replace('/(tabs)');
@@ -46,52 +32,48 @@ export default function LoginScreen() {
       Alert.alert('Login Failed', message);
     },
   });
-  
+
   const handleLogin = () => {
     if (!email || !password) {
       Alert.alert('Validation Error', 'Please enter email and password');
       return;
     }
-    
     loginMutation.mutate({ email, password });
   };
-  
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
       <View style={styles.content}>
-        {/* Logo/Title */}
         <View style={styles.header}>
-          <Text style={styles.logo}>💪</Text>
           <Text style={styles.title}>repFIT</Text>
           <Text style={styles.subtitle}>Track your gains</Text>
         </View>
-        
-        {/* Form */}
+
         <View style={styles.form}>
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#666"
+            placeholderTextColor="#8A8A8A"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#666"
+            placeholderTextColor="#8A8A8A"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoComplete="password"
           />
-          
+
           <TouchableOpacity
             style={[styles.button, loginMutation.isPending && styles.buttonDisabled]}
             onPress={handleLogin}
@@ -102,8 +84,7 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-        
-        {/* Register link */}
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
           <Link href="/(auth)/register" asChild>
@@ -120,46 +101,45 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121212',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 32,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 48,
-  },
-  logo: {
-    fontSize: 64,
-    marginBottom: 16,
+    marginBottom: 56,
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 40,
+    fontWeight: '300',
+    color: '#F5F5F5',
+    letterSpacing: 6,
+    textTransform: 'uppercase',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#888',
+    fontSize: 14,
+    color: '#8A8A8A',
+    letterSpacing: 2,
   },
   form: {
     gap: 16,
   },
   input: {
-    backgroundColor: '#252542',
-    borderRadius: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
     padding: 16,
     fontSize: 16,
-    color: '#fff',
+    color: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#3d3d5c',
+    borderColor: '#2A2A2A',
   },
   button: {
-    backgroundColor: '#6366f1',
-    borderRadius: 12,
+    backgroundColor: '#4A6FA5',
+    borderRadius: 4,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
@@ -168,22 +148,23 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    color: '#F5F5F5',
+    fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 1,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 32,
+    marginTop: 40,
   },
   footerText: {
-    color: '#888',
+    color: '#8A8A8A',
     fontSize: 14,
   },
   linkText: {
-    color: '#6366f1',
+    color: '#4A6FA5',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

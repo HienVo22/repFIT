@@ -1,10 +1,5 @@
-/**
- * Routines Screen - List and manage workout routines.
- */
-
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useRoutines } from '@/hooks/useRoutines';
 import { RoutineListItem, DayOfWeek } from '@/types';
 
@@ -20,15 +15,9 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
 
 export default function RoutinesScreen() {
   const { data: routines, isLoading, error, refetch } = useRoutines();
-  
+
   const renderRoutineCard = ({ item }: { item: RoutineListItem }) => (
-    <TouchableOpacity 
-      style={styles.routineCard}
-      onPress={() => {
-        // Navigate to routine detail (to be implemented)
-        // router.push(`/routines/${item.id}`);
-      }}
-    >
+    <TouchableOpacity style={styles.routineCard} onPress={() => {}}>
       <View style={styles.routineHeader}>
         <Text style={styles.routineName}>{item.name}</Text>
         {item.day_of_week && (
@@ -39,33 +28,33 @@ export default function RoutinesScreen() {
           </View>
         )}
       </View>
-      
+
       {item.description && (
         <Text style={styles.routineDescription} numberOfLines={2}>
           {item.description}
         </Text>
       )}
-      
+
       <View style={styles.routineFooter}>
         <View style={styles.exerciseCount}>
-          <Ionicons name="barbell-outline" size={16} color="#888" />
+          <Ionicons name="barbell-outline" size={16} color="#8A8A8A" />
           <Text style={styles.exerciseCountText}>
             {item.exercise_count} exercises
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
+        <Ionicons name="chevron-forward" size={20} color="#8A8A8A" />
       </View>
     </TouchableOpacity>
   );
-  
+
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#4A6FA5" />
       </View>
     );
   }
-  
+
   if (error) {
     return (
       <View style={styles.centered}>
@@ -76,7 +65,7 @@ export default function RoutinesScreen() {
       </View>
     );
   }
-  
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -86,7 +75,7 @@ export default function RoutinesScreen() {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="barbell-outline" size={64} color="#444" />
+            <Ionicons name="barbell-outline" size={64} color="#2A2A2A" />
             <Text style={styles.emptyTitle}>No routines yet</Text>
             <Text style={styles.emptyText}>
               Create your first workout routine to get started
@@ -94,16 +83,9 @@ export default function RoutinesScreen() {
           </View>
         }
       />
-      
-      {/* FAB - Floating Action Button */}
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => {
-          // Navigate to create routine (to be implemented)
-          // router.push('/routines/create');
-        }}
-      >
-        <Ionicons name="add" size={28} color="#fff" />
+
+      <TouchableOpacity style={styles.fab} onPress={() => {}}>
+        <Ionicons name="add" size={28} color="#F5F5F5" />
       </TouchableOpacity>
     </View>
   );
@@ -112,21 +94,21 @@ export default function RoutinesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121212',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121212',
   },
   listContent: {
     padding: 16,
     paddingBottom: 100,
   },
   routineCard: {
-    backgroundColor: '#252542',
-    borderRadius: 16,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
     padding: 16,
     marginBottom: 12,
   },
@@ -137,27 +119,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   routineName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 17,
+    fontWeight: '400',
+    color: '#F5F5F5',
     flex: 1,
+    letterSpacing: 0.5,
   },
   dayBadge: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#4A6FA5',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 2,
     marginLeft: 8,
   },
   dayBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#F5F5F5',
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   routineDescription: {
     fontSize: 14,
-    color: '#888',
+    color: '#8A8A8A',
     marginBottom: 12,
+    lineHeight: 20,
   },
   routineFooter: {
     flexDirection: 'row',
@@ -170,8 +156,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   exerciseCountText: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: '#8A8A8A',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -179,13 +165,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '300',
+    color: '#F5F5F5',
     marginTop: 16,
+    letterSpacing: 1,
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
+    color: '#8A8A8A',
     marginTop: 8,
     textAlign: 'center',
   },
@@ -196,7 +183,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#4A6FA5',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -211,13 +198,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#4A6FA5',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 4,
   },
   retryText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#F5F5F5',
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
 });

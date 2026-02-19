@@ -1,18 +1,3 @@
-/**
- * Tab Navigator Layout.
- * 
- * 🎓 INTERVIEW CONCEPT: Tab Navigation UX
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * Tab navigation is the standard pattern for mobile apps because:
- * 1. Easy thumb access at bottom of screen
- * 2. Persistent navigation state
- * 3. Clear indication of current location
- * 4. Quick switching between main sections
- * 
- * The center "Record" tab is larger - a common pattern for
- * the primary action (like Instagram's post button).
- */
-
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet } from 'react-native';
@@ -23,21 +8,17 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: {
-          backgroundColor: '#1a1a2e',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerStyle: { backgroundColor: '#121212' },
+        headerTintColor: '#F5F5F5',
+        headerTitleStyle: { fontWeight: '300', letterSpacing: 1 },
         tabBarStyle: {
-          backgroundColor: '#1a1a2e',
-          borderTopColor: '#252542',
+          backgroundColor: '#121212',
+          borderTopColor: '#2A2A2A',
           height: 60,
           paddingBottom: 8,
         },
-        tabBarActiveTintColor: '#6366f1',
-        tabBarInactiveTintColor: '#666',
+        tabBarActiveTintColor: '#4A6FA5',
+        tabBarInactiveTintColor: '#8A8A8A',
       }}
     >
       <Tabs.Screen
@@ -49,7 +30,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
       <Tabs.Screen
         name="routines"
         options={{
@@ -59,24 +40,24 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
       <Tabs.Screen
         name="record"
         options={{
           title: 'Record',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.recordButton, focused && styles.recordButtonActive]}>
-              <Ionicons 
-                name="add" 
-                size={32} 
-                color={focused ? '#fff' : '#6366f1'} 
+              <Ionicons
+                name="add"
+                size={32}
+                color={focused ? '#F5F5F5' : '#4A6FA5'}
               />
             </View>
           ),
-          tabBarLabel: () => null, // Hide label for center button
+          tabBarLabel: () => null,
         }}
       />
-      
+
       <Tabs.Screen
         name="nutrition"
         options={{
@@ -86,7 +67,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
       <Tabs.Screen
         name="profile"
         options={{
@@ -105,14 +86,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#252542',
+    backgroundColor: '#1E1E1E',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#6366f1',
+    borderWidth: 1,
+    borderColor: '#4A6FA5',
   },
   recordButtonActive: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#4A6FA5',
   },
 });

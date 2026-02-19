@@ -1,181 +1,175 @@
-/**
- * Nutrition Screen - Natural language food logging.
- * 
- * 🎓 INTERVIEW CONCEPT: Natural Language Processing (NLP) Integration
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * This screen sends raw text to the backend, which:
- * 1. Parses the text to extract food items
- * 2. Queries USDA API for nutritional data
- * 3. Aggregates and returns macro totals
- * 
- * The frontend is simple - it just sends text and displays results.
- * All the complexity is on the backend (Separation of Concerns).
- */
-
 import { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getNutritionByDate, createNutritionLog } from '@/api/nutrition';
+import { NutritionLog } from '@/types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+const todayStr = () => new Date().toISOString().split('T')[0];
 
 export default function NutritionScreen() {
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Mock daily totals - replace with API data
-  const dailyTotals = {
-    calories: 1850,
-    protein: 120,
-    carbs: 180,
-    fat: 65,
-    goal: {
-      calories: 2200,
-      protein: 150,
-      carbs: 250,
-      fat: 80,
+  const [calories, setCalories] = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs, setCarbs] = useState('');
+  const [fat, setFat] = useState('');
+  const queryClient = useQueryClient();
+
+  const { data: summary } = useQuery({
+    queryKey: ['nutrition', todayStr()],
+    queryFn: () => getNutritionByDate(todayStr()),
+    staleTime: 30 * 1000,
+  });
+
+  const logMutation = useMutation({
+    mutationFn: createNutritionLog,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['nutrition', todayStr()] });
+      setInput('');
+      setCalories('');
+      setProtein('');
+      setCarbs('');
+      setFat('');
     },
-  };
-  
-  const meals = [
-    { id: 1, time: '8:30 AM', description: 'Oatmeal with banana', calories: 350 },
-    { id: 2, time: '12:00 PM', description: 'Chicken salad', calories: 550 },
-    { id: 3, time: '3:00 PM', description: 'Greek yogurt with berries', calories: 200 },
-    { id: 4, time: '7:00 PM', description: 'Salmon with rice', calories: 750 },
-  ];
-  
-  const handleSubmit = async () => {
+    onError: () => {
+      Alert.alert('Error', 'Failed to log nutrition entry.');
+    },
+  });
+
+  const handleSubmit = () => {
     if (!input.trim()) return;
-    
-    setIsLoading(true);
-    // TODO: Send to API
-    // const result = await logNutrition({ raw_input: input });
-    
-    // Mock delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsLoading(false);
-    setInput('');
+
+    logMutation.mutate({
+      raw_input: input.trim(),
+      calories: parseFloat(calories) || 0,
+      protein_g: parseFloat(protein) || 0,
+      carbs_g: parseFloat(carbs) || 0,
+      fat_g: parseFloat(fat) || 0,
+    });
   };
-  
-  const MacroProgress = ({ 
-    label, 
-    current, 
-    goal, 
-    color 
-  }: { 
-    label: string; 
-    current: number; 
-    goal: number; 
+
+  const totalCalories = summary?.total_calories ?? 0;
+  const totalProtein = summary?.total_protein_g ?? 0;
+  const totalCarbs = summary?.total_carbs_g ?? 0;
+  const totalFat = summary?.total_fat_g ?? 0;
+  const logs: NutritionLog[] = summary?.logs ?? [];
+
+  const goalCalories = 2200;
+  const goalProtein = 150;
+  const goalCarbs = 250;
+  const goalFat = 80;
+
+  const MacroProgress = ({
+    label,
+    current,
+    goal,
+    color,
+  }: {
+    label: string;
+    current: number;
+    goal: number;
     color: string;
   }) => {
     const percentage = Math.min((current / goal) * 100, 100);
-    
     return (
       <View style={styles.macroItem}>
         <View style={styles.macroHeader}>
           <Text style={styles.macroLabel}>{label}</Text>
           <Text style={styles.macroValue}>
-            {current}<Text style={styles.macroUnit}>/{goal}g</Text>
+            {Math.round(current)}<Text style={styles.macroUnit}>/{goal}g</Text>
           </Text>
         </View>
         <View style={styles.macroBarBg}>
-          <View 
+          <View
             style={[
-              styles.macroBarFill, 
-              { width: `${percentage}%`, backgroundColor: color }
-            ]} 
+              styles.macroBarFill,
+              { width: `${percentage}%`, backgroundColor: color },
+            ]}
           />
         </View>
       </View>
     );
   };
-  
+
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.scrollView}>
-        {/* Daily Summary Card */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Today's Nutrition</Text>
-          
-          {/* Calories Circle */}
+
           <View style={styles.caloriesContainer}>
             <View style={styles.caloriesCircle}>
-              <Text style={styles.caloriesValue}>{dailyTotals.calories}</Text>
-              <Text style={styles.caloriesLabel}>
-                / {dailyTotals.goal.calories} kcal
-              </Text>
+              <Text style={styles.caloriesValue}>{Math.round(totalCalories)}</Text>
+              <Text style={styles.caloriesLabel}>/ {goalCalories} kcal</Text>
             </View>
           </View>
-          
-          {/* Macros Progress */}
+
           <View style={styles.macrosContainer}>
-            <MacroProgress 
-              label="Protein" 
-              current={dailyTotals.protein} 
-              goal={dailyTotals.goal.protein}
-              color="#ef4444"
-            />
-            <MacroProgress 
-              label="Carbs" 
-              current={dailyTotals.carbs} 
-              goal={dailyTotals.goal.carbs}
-              color="#3b82f6"
-            />
-            <MacroProgress 
-              label="Fat" 
-              current={dailyTotals.fat} 
-              goal={dailyTotals.goal.fat}
-              color="#f59e0b"
-            />
+            <MacroProgress label="Protein" current={totalProtein} goal={goalProtein} color="#4A6FA5" />
+            <MacroProgress label="Carbs" current={totalCarbs} goal={goalCarbs} color="#8A8A8A" />
+            <MacroProgress label="Fat" current={totalFat} goal={goalFat} color="#F5F5F5" />
           </View>
         </View>
-        
-        {/* Meals List */}
+
         <View style={styles.mealsSection}>
           <Text style={styles.sectionTitle}>Today's Meals</Text>
-          
-          {meals.map((meal) => (
-            <View key={meal.id} style={styles.mealCard}>
-              <View style={styles.mealInfo}>
-                <Text style={styles.mealTime}>{meal.time}</Text>
-                <Text style={styles.mealDescription}>{meal.description}</Text>
-              </View>
-              <Text style={styles.mealCalories}>{meal.calories} kcal</Text>
+
+          {logs.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>No meals logged yet</Text>
             </View>
-          ))}
+          ) : (
+            logs.map((meal) => (
+              <View key={meal.id} style={styles.mealCard}>
+                <View style={styles.mealInfo}>
+                  <Text style={styles.mealTime}>
+                    {new Date(meal.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                  <Text style={styles.mealDescription}>{meal.raw_input}</Text>
+                </View>
+                <Text style={styles.mealCalories}>{Math.round(meal.calories)} kcal</Text>
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
-      
-      {/* Input Section */}
+
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="What did you eat? (e.g., 2 eggs and toast)"
-          placeholderTextColor="#666"
+          placeholder="What did you eat?"
+          placeholderTextColor="#8A8A8A"
           value={input}
           onChangeText={setInput}
-          multiline
           maxLength={200}
         />
-        <TouchableOpacity 
-          style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+        <View style={styles.macroInputRow}>
+          <TextInput style={styles.macroInput} placeholder="kcal" placeholderTextColor="#8A8A8A" value={calories} onChangeText={setCalories} keyboardType="numeric" />
+          <TextInput style={styles.macroInput} placeholder="P (g)" placeholderTextColor="#8A8A8A" value={protein} onChangeText={setProtein} keyboardType="numeric" />
+          <TextInput style={styles.macroInput} placeholder="C (g)" placeholderTextColor="#8A8A8A" value={carbs} onChangeText={setCarbs} keyboardType="numeric" />
+          <TextInput style={styles.macroInput} placeholder="F (g)" placeholderTextColor="#8A8A8A" value={fat} onChangeText={setFat} keyboardType="numeric" />
+        </View>
+        <TouchableOpacity
+          style={[styles.submitButton, (!input.trim() || logMutation.isPending) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
-          disabled={isLoading || !input.trim()}
+          disabled={!input.trim() || logMutation.isPending}
         >
-          <Ionicons 
-            name={isLoading ? "hourglass" : "add-circle"} 
-            size={32} 
-            color={input.trim() ? "#6366f1" : "#444"} 
-          />
+          <Text style={styles.submitButtonText}>
+            {logMutation.isPending ? 'Logging...' : 'Log'}
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -185,23 +179,25 @@ export default function NutritionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121212',
   },
   scrollView: {
     flex: 1,
   },
   summaryCard: {
     margin: 16,
-    backgroundColor: '#252542',
-    borderRadius: 20,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
     padding: 20,
   },
   summaryTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#8A8A8A',
     textAlign: 'center',
     marginBottom: 16,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   caloriesContainer: {
     alignItems: 'center',
@@ -211,19 +207,20 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    borderWidth: 8,
-    borderColor: '#6366f1',
+    borderWidth: 2,
+    borderColor: '#4A6FA5',
     justifyContent: 'center',
     alignItems: 'center',
   },
   caloriesValue: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '300',
+    color: '#F5F5F5',
+    fontVariant: ['tabular-nums'],
   },
   caloriesLabel: {
     fontSize: 12,
-    color: '#888',
+    color: '#8A8A8A',
   },
   macrosContainer: {
     gap: 12,
@@ -236,41 +233,56 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   macroLabel: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: '#8A8A8A',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   macroValue: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '400',
+    color: '#F5F5F5',
+    fontVariant: ['tabular-nums'],
   },
   macroUnit: {
-    color: '#888',
+    color: '#8A8A8A',
     fontWeight: 'normal',
   },
   macroBarBg: {
-    height: 8,
-    backgroundColor: '#3d3d5c',
-    borderRadius: 4,
+    height: 4,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 2,
     overflow: 'hidden',
   },
   macroBarFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 2,
   },
   mealsSection: {
     padding: 16,
     paddingTop: 0,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#8A8A8A',
     marginBottom: 12,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  emptyCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#8A8A8A',
   },
   mealCard: {
-    backgroundColor: '#252542',
-    borderRadius: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
     padding: 16,
     marginBottom: 8,
     flexDirection: 'row',
@@ -281,42 +293,61 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mealTime: {
-    fontSize: 12,
-    color: '#888',
+    fontSize: 11,
+    color: '#8A8A8A',
+    letterSpacing: 0.5,
   },
   mealDescription: {
-    fontSize: 16,
-    color: '#fff',
+    fontSize: 15,
+    color: '#F5F5F5',
     marginTop: 4,
   },
   mealCalories: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#6366f1',
+    fontWeight: '400',
+    color: '#4A6FA5',
+    fontVariant: ['tabular-nums'],
   },
   inputContainer: {
-    flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#252542',
+    backgroundColor: '#1E1E1E',
     borderTopWidth: 1,
-    borderTopColor: '#3d3d5c',
-    alignItems: 'flex-end',
-    gap: 12,
+    borderTopColor: '#2A2A2A',
+    gap: 8,
   },
   input: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
+    backgroundColor: '#121212',
+    borderRadius: 4,
     padding: 12,
-    fontSize: 16,
-    color: '#fff',
-    minHeight: 48,
-    maxHeight: 100,
+    fontSize: 15,
+    color: '#F5F5F5',
+  },
+  macroInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  macroInput: {
+    flex: 1,
+    backgroundColor: '#121212',
+    borderRadius: 4,
+    padding: 10,
+    fontSize: 14,
+    color: '#F5F5F5',
+    textAlign: 'center',
   },
   submitButton: {
-    padding: 8,
+    backgroundColor: '#4A6FA5',
+    borderRadius: 4,
+    padding: 12,
+    alignItems: 'center',
   },
   submitButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
+  },
+  submitButtonText: {
+    color: '#F5F5F5',
+    fontSize: 15,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
 });

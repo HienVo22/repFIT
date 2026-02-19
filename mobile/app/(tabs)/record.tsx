@@ -1,34 +1,20 @@
-/**
- * Record Screen - Start a workout session.
- * 
- * 🎓 INTERVIEW CONCEPT: State-Driven UI
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * This screen has two states:
- * 1. Selection mode: Choose which routine to start
- * 2. Active workout: Show sets to complete with timer
- * 
- * The UI completely changes based on workout state.
- * This is a common pattern - conditionally render
- * entirely different components based on state.
- */
-
-import { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
+import { useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoutines } from '@/hooks/useRoutines';
 import { useWorkoutStore } from '@/store/workoutStore';
-import { Routine, RoutineListItem } from '@/types';
+import { RoutineListItem } from '@/types';
 import { getRoutine } from '@/api/routines';
+import { saveWorkoutSession } from '@/api/workouts';
 
-// Format seconds as MM:SS
 const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -37,19 +23,18 @@ const formatTime = (seconds: number): string => {
 
 export default function RecordScreen() {
   const { data: routines, isLoading } = useRoutines();
-  const { 
-    isActive, 
-    routine, 
-    sets, 
-    elapsedSeconds, 
+  const {
+    isActive,
+    routine,
+    sets,
+    elapsedSeconds,
     currentSetIndex,
-    startWorkout, 
-    endWorkout, 
+    startWorkout,
+    endWorkout,
     completeSet,
     tick,
   } = useWorkoutStore();
-  
-  // Timer effect
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isActive) {
@@ -57,29 +42,50 @@ export default function RecordScreen() {
     }
     return () => clearInterval(interval);
   }, [isActive, tick]);
-  
+
   const handleSelectRoutine = async (item: RoutineListItem) => {
     try {
-      // Fetch full routine with exercises
       const fullRoutine = await getRoutine(item.id);
       startWorkout(fullRoutine);
     } catch (error) {
       Alert.alert('Error', 'Failed to load routine');
     }
   };
-  
+
   const handleEndWorkout = () => {
     Alert.alert(
       'End Workout?',
       'Are you sure you want to finish this workout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Finish', 
-          onPress: () => {
+        {
+          text: 'Finish',
+          onPress: async () => {
             const result = endWorkout();
+
+            try {
+              if (result.routine && result.startTime) {
+                await saveWorkoutSession({
+                  routine_id: result.routine.id,
+                  routine_name: result.routine.name,
+                  started_at: result.startTime.toISOString(),
+                  ended_at: new Date().toISOString(),
+                  duration_seconds: result.duration,
+                  completed_sets: result.completedSets.map(s => ({
+                    exercise_name: result.routine!.exercises[s.exerciseIndex].exercise_name,
+                    set_number: s.setNumber,
+                    reps_completed: s.actualReps ?? s.targetReps,
+                    weight_used: s.actualWeight ?? s.targetWeight,
+                    is_completed: true,
+                  })),
+                });
+              }
+            } catch {
+              // Save failed but workout is already ended locally
+            }
+
             Alert.alert(
-              'Workout Complete! 🎉',
+              'Workout Complete',
               `Duration: ${formatTime(result.duration)}\nSets completed: ${result.completedSets.length}`
             );
           },
@@ -87,21 +93,19 @@ export default function RecordScreen() {
       ]
     );
   };
-  
+
   // Active workout view
   if (isActive && routine) {
     return (
       <View style={styles.container}>
-        {/* Header with timer */}
         <View style={styles.workoutHeader}>
           <Text style={styles.workoutTitle}>{routine.name}</Text>
           <View style={styles.timerContainer}>
-            <Ionicons name="time-outline" size={24} color="#6366f1" />
+            <Ionicons name="time-outline" size={24} color="#4A6FA5" />
             <Text style={styles.timerText}>{formatTime(elapsedSeconds)}</Text>
           </View>
         </View>
-        
-        {/* Sets list */}
+
         <FlatList
           data={sets}
           keyExtractor={(_, index) => index.toString()}
@@ -109,7 +113,7 @@ export default function RecordScreen() {
           renderItem={({ item, index }) => {
             const exercise = routine.exercises[item.exerciseIndex];
             const isCurrentSet = index === currentSetIndex;
-            
+
             return (
               <TouchableOpacity
                 style={[
@@ -128,17 +132,17 @@ export default function RecordScreen() {
                 <View style={styles.setInfo}>
                   <Text style={styles.setExercise}>{exercise.exercise_name}</Text>
                   <Text style={styles.setDetails}>
-                    Set {item.setNumber} • {item.targetReps} reps
+                    Set {item.setNumber} · {item.targetReps} reps
                     {item.targetWeight ? ` @ ${item.targetWeight}kg` : ''}
                   </Text>
                 </View>
-                
+
                 <View style={[
                   styles.setBubble,
                   item.status === 'completed' && styles.setBubbleCompleted,
                 ]}>
                   {item.status === 'completed' ? (
-                    <Ionicons name="checkmark" size={24} color="#fff" />
+                    <Ionicons name="checkmark" size={24} color="#F5F5F5" />
                   ) : (
                     <Text style={styles.setBubbleText}>{item.setNumber}</Text>
                   )}
@@ -147,44 +151,38 @@ export default function RecordScreen() {
             );
           }}
         />
-        
-        {/* End workout button */}
+
         <View style={styles.workoutFooter}>
-          <TouchableOpacity 
-            style={styles.endButton}
-            onPress={handleEndWorkout}
-          >
+          <TouchableOpacity style={styles.endButton} onPress={handleEndWorkout}>
             <Text style={styles.endButtonText}>Finish Workout</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
-  
+
   // Routine selection view
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#4A6FA5" />
       </View>
     );
   }
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.selectionHeader}>
         <Text style={styles.selectionTitle}>Start a Workout</Text>
-        <Text style={styles.selectionSubtitle}>
-          Choose a routine to begin
-        </Text>
+        <Text style={styles.selectionSubtitle}>Choose a routine to begin</Text>
       </View>
-      
+
       <FlatList
         data={routines}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.routineOption}
             onPress={() => handleSelectRoutine(item)}
           >
@@ -194,12 +192,12 @@ export default function RecordScreen() {
                 {item.exercise_count} exercises
               </Text>
             </View>
-            <Ionicons name="play-circle" size={40} color="#6366f1" />
+            <Ionicons name="play-circle" size={40} color="#4A6FA5" />
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="barbell-outline" size={64} color="#444" />
+            <Ionicons name="barbell-outline" size={64} color="#2A2A2A" />
             <Text style={styles.emptyTitle}>No routines available</Text>
             <Text style={styles.emptyText}>
               Create a routine first in the Routines tab
@@ -214,35 +212,36 @@ export default function RecordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121212',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121212',
   },
-  // Selection view styles
   selectionHeader: {
     padding: 24,
     alignItems: 'center',
   },
   selectionTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '300',
+    color: '#F5F5F5',
+    letterSpacing: 1,
   },
   selectionSubtitle: {
-    fontSize: 16,
-    color: '#888',
+    fontSize: 14,
+    color: '#8A8A8A',
     marginTop: 8,
+    letterSpacing: 0.5,
   },
   listContent: {
     padding: 16,
   },
   routineOption: {
-    backgroundColor: '#252542',
-    borderRadius: 16,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
     padding: 20,
     marginBottom: 12,
     flexDirection: 'row',
@@ -253,13 +252,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   routineOptionName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 17,
+    fontWeight: '400',
+    color: '#F5F5F5',
+    letterSpacing: 0.5,
   },
   routineOptionDetails: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: '#8A8A8A',
     marginTop: 4,
   },
   emptyContainer: {
@@ -268,42 +268,43 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '300',
+    color: '#F5F5F5',
     marginTop: 16,
+    letterSpacing: 1,
   },
   emptyText: {
     fontSize: 14,
-    color: '#888',
+    color: '#8A8A8A',
     marginTop: 8,
     textAlign: 'center',
   },
-  // Active workout styles
   workoutHeader: {
     padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#252542',
+    borderBottomColor: '#2A2A2A',
     alignItems: 'center',
   },
   workoutTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '300',
+    color: '#F5F5F5',
+    letterSpacing: 1,
   },
   timerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginTop: 12,
-    backgroundColor: '#252542',
+    backgroundColor: '#1E1E1E',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 4,
   },
   timerText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '300',
+    color: '#F5F5F5',
     fontVariant: ['tabular-nums'],
   },
   setsList: {
@@ -311,8 +312,8 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   setCard: {
-    backgroundColor: '#252542',
-    borderRadius: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
     padding: 16,
     marginBottom: 8,
     flexDirection: 'row',
@@ -320,43 +321,43 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   setActive: {
-    borderWidth: 2,
-    borderColor: '#6366f1',
+    borderWidth: 1,
+    borderColor: '#4A6FA5',
   },
   setCompleted: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   setSkipped: {
-    opacity: 0.4,
+    opacity: 0.3,
   },
   setInfo: {
     flex: 1,
   },
   setExercise: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '400',
+    color: '#F5F5F5',
   },
   setDetails: {
-    fontSize: 14,
-    color: '#888',
+    fontSize: 13,
+    color: '#8A8A8A',
     marginTop: 4,
   },
   setBubble: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#3d3d5c',
+    backgroundColor: '#2A2A2A',
     justifyContent: 'center',
     alignItems: 'center',
   },
   setBubbleCompleted: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#4A6FA5',
   },
   setBubbleText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#888',
+    fontWeight: '400',
+    color: '#8A8A8A',
   },
   workoutFooter: {
     position: 'absolute',
@@ -364,19 +365,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121212',
     borderTopWidth: 1,
-    borderTopColor: '#252542',
+    borderTopColor: '#2A2A2A',
   },
   endButton: {
     backgroundColor: '#ef4444',
-    borderRadius: 12,
+    borderRadius: 4,
     padding: 16,
     alignItems: 'center',
   },
   endButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    color: '#F5F5F5',
+    fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
 });

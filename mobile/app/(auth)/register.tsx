@@ -1,7 +1,3 @@
-/**
- * Registration Screen.
- */
-
 import { useState } from 'react';
 import {
   View,
@@ -25,18 +21,16 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { setUser } = useAuthStore();
-  
+
   const registerMutation = useMutation({
     mutationFn: register,
     onSuccess: async () => {
-      // Auto-login after registration
       try {
         await login({ email, password });
         const user = await getCurrentUser();
         setUser(user);
         router.replace('/(tabs)');
       } catch {
-        // If auto-login fails, redirect to login page
         Alert.alert('Success', 'Account created! Please login.');
         router.replace('/(auth)/login');
       }
@@ -46,86 +40,77 @@ export default function RegisterScreen() {
       Alert.alert('Registration Failed', message);
     },
   });
-  
+
   const handleRegister = () => {
-    // Validation
     if (!username || !email || !password || !confirmPassword) {
       Alert.alert('Validation Error', 'Please fill in all fields');
       return;
     }
-    
     if (password !== confirmPassword) {
       Alert.alert('Validation Error', 'Passwords do not match');
       return;
     }
-    
     if (password.length < 8) {
       Alert.alert('Validation Error', 'Password must be at least 8 characters');
       return;
     }
-    
     registerMutation.mutate({ username, email, password });
   };
-  
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Start your fitness journey</Text>
           </View>
-          
-          {/* Form */}
+
           <View style={styles.form}>
             <TextInput
               style={styles.input}
               placeholder="Username"
-              placeholderTextColor="#666"
+              placeholderTextColor="#8A8A8A"
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
               autoComplete="username"
             />
-            
             <TextInput
               style={styles.input}
               placeholder="Email"
-              placeholderTextColor="#666"
+              placeholderTextColor="#8A8A8A"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
             />
-            
             <TextInput
               style={styles.input}
               placeholder="Password (min 8 characters)"
-              placeholderTextColor="#666"
+              placeholderTextColor="#8A8A8A"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="new-password"
             />
-            
             <TextInput
               style={styles.input}
               placeholder="Confirm Password"
-              placeholderTextColor="#666"
+              placeholderTextColor="#8A8A8A"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
               autoComplete="new-password"
             />
-            
+
             <TouchableOpacity
               style={[styles.button, registerMutation.isPending && styles.buttonDisabled]}
               onPress={handleRegister}
@@ -136,8 +121,7 @@ export default function RegisterScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-          
-          {/* Login link */}
+
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
             <Link href="/(auth)/login" asChild>
@@ -155,7 +139,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#121212',
   },
   scrollContent: {
     flexGrow: 1,
@@ -163,7 +147,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 32,
     paddingVertical: 48,
   },
   header: {
@@ -172,29 +156,31 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '300',
+    color: '#F5F5F5',
+    letterSpacing: 2,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#888',
+    fontSize: 14,
+    color: '#8A8A8A',
+    letterSpacing: 1,
   },
   form: {
     gap: 16,
   },
   input: {
-    backgroundColor: '#252542',
-    borderRadius: 12,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
     padding: 16,
     fontSize: 16,
-    color: '#fff',
+    color: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#3d3d5c',
+    borderColor: '#2A2A2A',
   },
   button: {
-    backgroundColor: '#6366f1',
-    borderRadius: 12,
+    backgroundColor: '#4A6FA5',
+    borderRadius: 4,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
@@ -203,9 +189,10 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    color: '#F5F5F5',
+    fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 1,
   },
   footer: {
     flexDirection: 'row',
@@ -213,12 +200,12 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   footerText: {
-    color: '#888',
+    color: '#8A8A8A',
     fontSize: 14,
   },
   linkText: {
-    color: '#6366f1',
+    color: '#4A6FA5',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
 });

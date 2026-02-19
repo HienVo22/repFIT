@@ -1,4 +1,4 @@
-"""Pydantic Schemas Export."""
+"""Pydantic schemas export."""
 
 from app.schemas.user import (
     UserCreate,
@@ -7,6 +7,18 @@ from app.schemas.user import (
     Token,
     TokenPayload,
     LoginRequest,
+)
+from app.schemas.nutrition import (
+    NutritionLogCreate,
+    NutritionLogResponse,
+    DailyNutritionSummary,
+)
+from app.schemas.workout import (
+    WorkoutSessionCreate,
+    WorkoutSessionResponse,
+    WorkoutSessionListResponse,
+    CompletedSetCreate,
+    CompletedSetResponse,
 )
 from app.schemas.routine import (
     RoutineCreate,
@@ -19,14 +31,12 @@ from app.schemas.routine import (
 )
 
 __all__ = [
-    # User
     "UserCreate",
     "UserUpdate",
     "UserResponse",
     "Token",
     "TokenPayload",
     "LoginRequest",
-    # Routine
     "RoutineCreate",
     "RoutineUpdate",
     "RoutineResponse",
@@ -34,4 +44,12 @@ __all__ = [
     "RoutineExerciseCreate",
     "RoutineExerciseUpdate",
     "RoutineExerciseResponse",
+    "WorkoutSessionCreate",
+    "WorkoutSessionResponse",
+    "WorkoutSessionListResponse",
+    "CompletedSetCreate",
+    "CompletedSetResponse",
+    "NutritionLogCreate",
+    "NutritionLogResponse",
+    "DailyNutritionSummary",
 ]

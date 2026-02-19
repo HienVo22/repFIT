@@ -1,10 +1,4 @@
-"""
-Database Models Export.
-
-🎓 INTERVIEW TIP: Centralized exports make imports cleaner
-Instead of: from app.models.user import User
-You can do: from app.models import User
-"""
+"""Database models export."""
 
 from app.models.user import User
 from app.models.routine import Routine, RoutineExercise, DayOfWeek
