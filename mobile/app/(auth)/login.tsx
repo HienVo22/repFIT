@@ -7,35 +7,42 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
-import { login } from '@/api/auth';
+import { login, getCurrentUser } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
-import { getCurrentUser } from '@/api/auth';
+import { showAlert } from '@/utils/alert';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const { setUser } = useAuthStore();
 
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: async () => {
-      const user = await getCurrentUser();
-      setUser(user);
-      router.replace('/(tabs)');
+      try {
+        setErrorMessage('');
+        const user = await getCurrentUser();
+        setUser(user);
+        router.replace('/(tabs)');
+      } catch (e: any) {
+        setErrorMessage('Logged in but failed to load profile. Please try again.');
+      }
     },
     onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Login failed. Please try again.';
-      Alert.alert('Login Failed', message);
+      const message = error.response?.data?.detail || error.message || 'Login failed. Please try again.';
+      setErrorMessage(message);
+      showAlert('Login Failed', message);
     },
   });
 
   const handleLogin = () => {
+    setErrorMessage('');
     if (!email || !password) {
-      Alert.alert('Validation Error', 'Please enter email and password');
+      setErrorMessage('Please enter email and password');
       return;
     }
     loginMutation.mutate({ email, password });
@@ -53,6 +60,12 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          {errorMessage ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -127,6 +140,18 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(220, 38, 38, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.4)',
+    borderRadius: 4,
+    padding: 12,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    textAlign: 'center',
   },
   input: {
     backgroundColor: '#1E1E1E',

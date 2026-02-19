@@ -1,8 +1,10 @@
-"""Nutrition log endpoints -- create, list by date, delete."""
+"""Nutrition log endpoints -- create, list by date, delete, AI parse."""
 
+import logging
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, status, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.core.dependencies import CurrentUser, DbSession
@@ -12,6 +14,8 @@ from app.schemas.nutrition import (
     NutritionLogResponse,
     DailyNutritionSummary,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -122,3 +126,46 @@ async def delete_nutrition_log(
 
     await db.delete(entry)
     await db.commit()
+
+
+# ── AI food parsing ──
+
+class ParseFoodRequest(BaseModel):
+    text: str = Field(min_length=2, max_length=500)
+
+
+class ParsedFoodItem(BaseModel):
+    name: str
+    calories: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+
+
+class ParseFoodResponse(BaseModel):
+    items: list[ParsedFoodItem]
+    raw_text: str
+
+
+@router.post("/parse", response_model=ParseFoodResponse)
+async def parse_food_with_ai(
+    data: ParseFoodRequest,
+    current_user: CurrentUser,
+):
+    """Parse a natural language food description into structured items using AI."""
+    try:
+        from app.services.ai import parse_food_description
+        items = await parse_food_description(data.text)
+        parsed = [ParsedFoodItem(**item) for item in items]
+        return ParseFoodResponse(items=parsed, raw_text=data.text)
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.exception("AI food parsing failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse food description: {str(e)[:200]}",
+        )

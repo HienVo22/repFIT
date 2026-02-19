@@ -70,3 +70,45 @@ class RoutineListResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Routine generation schemas ──
+
+class GenerateRoutineRequest(BaseModel):
+    days_per_week: int = Field(ge=1, le=7)
+    split_type: str = Field(max_length=50)
+    intensity: str = Field(max_length=50)
+
+
+class GeneratedExercise(BaseModel):
+    exercise_name: str
+    muscle_group: str
+    target_sets: int
+    target_reps: str
+    equipment: str
+    order: int
+
+
+class GeneratedDay(BaseModel):
+    name: str
+    day_of_week: str
+    exercises: list[GeneratedExercise]
+
+
+class GenerateRoutineResponse(BaseModel):
+    split_type: str
+    split_label: str
+    intensity: str
+    days: list[GeneratedDay]
+
+
+class AvailableSplit(BaseModel):
+    key: str
+    label: str
+    min_days: int
+    max_days: int
+    day_names: list[str]
+
+
+class AvailableSplitsResponse(BaseModel):
+    splits: list[AvailableSplit]

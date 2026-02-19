@@ -7,51 +7,55 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { register, login, getCurrentUser } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
+import { showAlert } from '@/utils/alert';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const { setUser } = useAuthStore();
 
   const registerMutation = useMutation({
     mutationFn: register,
     onSuccess: async () => {
       try {
+        setErrorMessage('');
         await login({ email, password });
         const user = await getCurrentUser();
         setUser(user);
         router.replace('/(tabs)');
       } catch {
-        Alert.alert('Success', 'Account created! Please login.');
+        showAlert('Success', 'Account created! Please login.');
         router.replace('/(auth)/login');
       }
     },
     onError: (error: any) => {
-      const message = error.response?.data?.detail || 'Registration failed. Please try again.';
-      Alert.alert('Registration Failed', message);
+      const message = error.response?.data?.detail || error.message || 'Registration failed. Please try again.';
+      setErrorMessage(message);
+      showAlert('Registration Failed', message);
     },
   });
 
   const handleRegister = () => {
+    setErrorMessage('');
     if (!username || !email || !password || !confirmPassword) {
-      Alert.alert('Validation Error', 'Please fill in all fields');
+      setErrorMessage('Please fill in all fields');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Validation Error', 'Passwords do not match');
+      setErrorMessage('Passwords do not match');
       return;
     }
     if (password.length < 8) {
-      Alert.alert('Validation Error', 'Password must be at least 8 characters');
+      setErrorMessage('Password must be at least 8 characters');
       return;
     }
     registerMutation.mutate({ username, email, password });
@@ -73,6 +77,12 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.form}>
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             <TextInput
               style={styles.input}
               placeholder="Username"
@@ -168,6 +178,18 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(220, 38, 38, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.4)',
+    borderRadius: 4,
+    padding: 12,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    textAlign: 'center',
   },
   input: {
     backgroundColor: '#1E1E1E',

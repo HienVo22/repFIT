@@ -7,6 +7,7 @@ from app.schemas.user import (
     Token,
     TokenPayload,
     LoginRequest,
+    RefreshTokenRequest,
 )
 from app.schemas.nutrition import (
     NutritionLogCreate,
@@ -28,6 +29,9 @@ from app.schemas.routine import (
     RoutineExerciseCreate,
     RoutineExerciseUpdate,
     RoutineExerciseResponse,
+    GenerateRoutineRequest,
+    GenerateRoutineResponse,
+    AvailableSplitsResponse,
 )
 
 __all__ = [
@@ -44,6 +48,9 @@ __all__ = [
     "RoutineExerciseCreate",
     "RoutineExerciseUpdate",
     "RoutineExerciseResponse",
+    "GenerateRoutineRequest",
+    "GenerateRoutineResponse",
+    "AvailableSplitsResponse",
     "WorkoutSessionCreate",
     "WorkoutSessionResponse",
     "WorkoutSessionListResponse",

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,20 +6,27 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoutines } from '@/hooks/useRoutines';
 import { useWorkoutStore } from '@/store/workoutStore';
 import { RoutineListItem } from '@/types';
 import { getRoutine } from '@/api/routines';
-import { saveWorkoutSession } from '@/api/workouts';
+import { saveWorkoutSession, getWorkoutSummary } from '@/api/workouts';
+import { showAlert } from '@/utils/alert';
 
 const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 };
+
+interface WorkoutResult {
+  duration: number;
+  completedSets: any[];
+  routineName: string;
+}
 
 export default function RecordScreen() {
   const { data: routines, isLoading } = useRoutines();
@@ -35,8 +42,12 @@ export default function RecordScreen() {
     tick,
   } = useWorkoutStore();
 
+  const [workoutResult, setWorkoutResult] = useState<WorkoutResult | null>(null);
+  const [aiSummary, setAiSummary] = useState<{ summary: string; tips: string[] } | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isActive) {
       interval = setInterval(tick, 1000);
     }
@@ -47,52 +58,111 @@ export default function RecordScreen() {
     try {
       const fullRoutine = await getRoutine(item.id);
       startWorkout(fullRoutine);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load routine');
+      setWorkoutResult(null);
+      setAiSummary(null);
+    } catch {
+      showAlert('Error', 'Failed to load routine');
     }
   };
 
   const handleEndWorkout = () => {
-    Alert.alert(
-      'End Workout?',
-      'Are you sure you want to finish this workout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Finish',
-          onPress: async () => {
-            const result = endWorkout();
+    const result = endWorkout();
 
-            try {
-              if (result.routine && result.startTime) {
-                await saveWorkoutSession({
-                  routine_id: result.routine.id,
-                  routine_name: result.routine.name,
-                  started_at: result.startTime.toISOString(),
-                  ended_at: new Date().toISOString(),
-                  duration_seconds: result.duration,
-                  completed_sets: result.completedSets.map(s => ({
-                    exercise_name: result.routine!.exercises[s.exerciseIndex].exercise_name,
-                    set_number: s.setNumber,
-                    reps_completed: s.actualReps ?? s.targetReps,
-                    weight_used: s.actualWeight ?? s.targetWeight,
-                    is_completed: true,
-                  })),
-                });
-              }
-            } catch {
-              // Save failed but workout is already ended locally
-            }
+    const completedSets = result.completedSets.map((s: any) => ({
+      exercise_name: result.routine!.exercises[s.exerciseIndex].exercise_name,
+      set_number: s.setNumber,
+      reps_completed: s.actualReps ?? s.targetReps,
+      weight_used: s.actualWeight ?? s.targetWeight,
+      is_completed: true,
+    }));
 
-            Alert.alert(
-              'Workout Complete',
-              `Duration: ${formatTime(result.duration)}\nSets completed: ${result.completedSets.length}`
-            );
-          },
-        },
-      ]
-    );
+    setWorkoutResult({
+      duration: result.duration,
+      completedSets,
+      routineName: result.routine?.name || 'Workout',
+    });
+
+    // Save to backend
+    if (result.routine && result.startTime) {
+      saveWorkoutSession({
+        routine_id: result.routine.id,
+        routine_name: result.routine.name,
+        started_at: result.startTime.toISOString(),
+        ended_at: new Date().toISOString(),
+        duration_seconds: result.duration,
+        completed_sets: completedSets,
+      }).catch(() => {});
+    }
+
+    // Fetch AI summary
+    setLoadingSummary(true);
+    getWorkoutSummary({
+      routine_name: result.routine?.name || 'Workout',
+      duration_seconds: result.duration,
+      completed_sets: completedSets,
+    })
+      .then(setAiSummary)
+      .catch(() => {})
+      .finally(() => setLoadingSummary(false));
   };
+
+  // Post-workout summary view
+  if (workoutResult) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.summaryContent}>
+        <View style={styles.completeBanner}>
+          <Ionicons name="checkmark-circle" size={64} color="#4A6FA5" />
+          <Text style={styles.completeTitle}>Workout Complete</Text>
+          <Text style={styles.completeRoutineName}>{workoutResult.routineName}</Text>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{formatTime(workoutResult.duration)}</Text>
+            <Text style={styles.statLabel}>Duration</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{workoutResult.completedSets.length}</Text>
+            <Text style={styles.statLabel}>Sets</Text>
+          </View>
+        </View>
+
+        {loadingSummary && (
+          <View style={styles.aiLoadingCard}>
+            <ActivityIndicator size="small" color="#4A6FA5" />
+            <Text style={styles.aiLoadingText}>Generating AI summary...</Text>
+          </View>
+        )}
+
+        {aiSummary && (
+          <View style={styles.aiCard}>
+            <View style={styles.aiHeader}>
+              <Ionicons name="sparkles" size={18} color="#4A6FA5" />
+              <Text style={styles.aiHeaderText}>Coach's Analysis</Text>
+            </View>
+            <Text style={styles.aiSummaryText}>{aiSummary.summary}</Text>
+            {aiSummary.tips.length > 0 && (
+              <View style={styles.aiTipsContainer}>
+                {aiSummary.tips.map((tip, i) => (
+                  <View key={i} style={styles.aiTipRow}>
+                    <Text style={styles.aiTipBullet}>{i + 1}</Text>
+                    <Text style={styles.aiTipText}>{tip}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.newWorkoutButton}
+          onPress={() => setWorkoutResult(null)}
+        >
+          <Text style={styles.newWorkoutText}>Start New Workout</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
 
   // Active workout view
   if (isActive && routine) {
@@ -210,20 +280,16 @@ export default function RecordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
+  container: { flex: 1, backgroundColor: '#121212' },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#121212',
   },
-  selectionHeader: {
-    padding: 24,
-    alignItems: 'center',
-  },
+
+  // Selection
+  selectionHeader: { padding: 24, alignItems: 'center' },
   selectionTitle: {
     fontSize: 28,
     fontWeight: '300',
@@ -236,9 +302,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     letterSpacing: 0.5,
   },
-  listContent: {
-    padding: 16,
-  },
+  listContent: { padding: 16 },
   routineOption: {
     backgroundColor: '#1E1E1E',
     borderRadius: 4,
@@ -248,24 +312,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  routineOptionInfo: {
-    flex: 1,
-  },
+  routineOptionInfo: { flex: 1 },
   routineOptionName: {
     fontSize: 17,
     fontWeight: '400',
     color: '#F5F5F5',
     letterSpacing: 0.5,
   },
-  routineOptionDetails: {
-    fontSize: 13,
-    color: '#8A8A8A',
-    marginTop: 4,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingTop: 60,
-  },
+  routineOptionDetails: { fontSize: 13, color: '#8A8A8A', marginTop: 4 },
+  emptyContainer: { alignItems: 'center', paddingTop: 60 },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '300',
@@ -279,6 +334,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+
+  // Active workout
   workoutHeader: {
     padding: 24,
     borderBottomWidth: 1,
@@ -307,10 +364,7 @@ const styles = StyleSheet.create({
     color: '#F5F5F5',
     fontVariant: ['tabular-nums'],
   },
-  setsList: {
-    padding: 16,
-    paddingBottom: 100,
-  },
+  setsList: { padding: 16, paddingBottom: 100 },
   setCard: {
     backgroundColor: '#1E1E1E',
     borderRadius: 4,
@@ -320,29 +374,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  setActive: {
-    borderWidth: 1,
-    borderColor: '#4A6FA5',
-  },
-  setCompleted: {
-    opacity: 0.5,
-  },
-  setSkipped: {
-    opacity: 0.3,
-  },
-  setInfo: {
-    flex: 1,
-  },
-  setExercise: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#F5F5F5',
-  },
-  setDetails: {
-    fontSize: 13,
-    color: '#8A8A8A',
-    marginTop: 4,
-  },
+  setActive: { borderWidth: 1, borderColor: '#4A6FA5' },
+  setCompleted: { opacity: 0.5 },
+  setSkipped: { opacity: 0.3 },
+  setInfo: { flex: 1 },
+  setExercise: { fontSize: 16, fontWeight: '400', color: '#F5F5F5' },
+  setDetails: { fontSize: 13, color: '#8A8A8A', marginTop: 4 },
   setBubble: {
     width: 48,
     height: 48,
@@ -351,14 +388,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  setBubbleCompleted: {
-    backgroundColor: '#4A6FA5',
-  },
-  setBubbleText: {
-    fontSize: 18,
-    fontWeight: '400',
-    color: '#8A8A8A',
-  },
+  setBubbleCompleted: { backgroundColor: '#4A6FA5' },
+  setBubbleText: { fontSize: 18, fontWeight: '400', color: '#8A8A8A' },
   workoutFooter: {
     position: 'absolute',
     bottom: 0,
@@ -376,6 +407,103 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   endButtonText: {
+    color: '#F5F5F5',
+    fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+  },
+
+  // Post-workout summary
+  summaryContent: { padding: 24, paddingBottom: 60 },
+  completeBanner: { alignItems: 'center', marginBottom: 32 },
+  completeTitle: {
+    fontSize: 28,
+    fontWeight: '300',
+    color: '#F5F5F5',
+    letterSpacing: 1,
+    marginTop: 16,
+  },
+  completeRoutineName: {
+    fontSize: 15,
+    color: '#8A8A8A',
+    marginTop: 8,
+    letterSpacing: 0.5,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
+    padding: 20,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '300',
+    color: '#F5F5F5',
+    fontVariant: ['tabular-nums'],
+    marginBottom: 4,
+  },
+  statLabel: { fontSize: 13, color: '#8A8A8A', letterSpacing: 1, textTransform: 'uppercase' },
+
+  aiLoadingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
+    padding: 16,
+    marginBottom: 20,
+  },
+  aiLoadingText: { fontSize: 14, color: '#8A8A8A' },
+  aiCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
+    padding: 20,
+    marginBottom: 20,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4A6FA5',
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  aiHeaderText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#4A6FA5',
+    letterSpacing: 0.5,
+  },
+  aiSummaryText: {
+    fontSize: 14,
+    color: '#F5F5F5',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  aiTipsContainer: { gap: 10 },
+  aiTipRow: { flexDirection: 'row', gap: 10 },
+  aiTipBullet: {
+    fontSize: 13,
+    color: '#4A6FA5',
+    fontWeight: '600',
+    width: 16,
+    fontVariant: ['tabular-nums'],
+  },
+  aiTipText: { flex: 1, fontSize: 14, color: '#F5F5F5', lineHeight: 20 },
+  newWorkoutButton: {
+    backgroundColor: '#4A6FA5',
+    borderRadius: 4,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  newWorkoutText: {
     color: '#F5F5F5',
     fontSize: 16,
     fontWeight: '500',

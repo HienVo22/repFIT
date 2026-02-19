@@ -1,13 +1,17 @@
-"""Workout session endpoints -- save, list, and retrieve completed workouts."""
+"""Workout session endpoints -- save, list, retrieve, and AI summary."""
 
+import logging
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, status, Query
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import CurrentUser, DbSession
 from app.models import DailyLog, WorkoutSession, CompletedSet
+
+logger = logging.getLogger(__name__)
 from app.schemas.workout import (
     WorkoutSessionCreate,
     WorkoutSessionResponse,
@@ -132,3 +136,39 @@ async def get_workout(
         )
 
     return session
+
+
+# ── AI Workout Summary ──
+
+class WorkoutSummaryRequest(BaseModel):
+    routine_name: str
+    duration_seconds: int
+    completed_sets: list[dict]
+
+
+class WorkoutSummaryResponse(BaseModel):
+    summary: str
+    tips: list[str]
+
+
+@router.post("/summary", response_model=WorkoutSummaryResponse)
+async def get_workout_ai_summary(
+    data: WorkoutSummaryRequest,
+    current_user: CurrentUser,
+):
+    """Get an AI-generated summary and tips for a completed workout."""
+    try:
+        from app.services.ai import get_workout_summary
+        result = await get_workout_summary(data.model_dump())
+        return WorkoutSummaryResponse(**result)
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.exception("AI workout summary failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate workout summary: {str(e)[:200]}",
+        )

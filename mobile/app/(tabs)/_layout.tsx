@@ -45,13 +45,9 @@ export default function TabLayout() {
         name="record"
         options={{
           title: 'Record',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.recordButton, focused && styles.recordButtonActive]}>
-              <Ionicons
-                name="add"
-                size={32}
-                color={focused ? '#F5F5F5' : '#4A6FA5'}
-              />
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.shutterOuter}>
+              <View style={[styles.shutterInner, focused && styles.shutterInnerActive]} />
             </View>
           ),
           tabBarLabel: () => null,
@@ -82,18 +78,23 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  recordButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#1E1E1E',
+  shutterOuter: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#4A6FA5',
+    marginBottom: 24,
   },
-  recordButtonActive: {
-    backgroundColor: '#4A6FA5',
+  shutterInner: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FFFFFF',
+  },
+  shutterInnerActive: {
+    opacity: 0.75,
   },
 });

@@ -3,14 +3,59 @@
  */
 
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
 import { AuthTokens } from '@/types';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+function resolveApiUrl(): string {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  if (Platform.OS === 'web') {
+    return 'http://localhost:8000/api/v1';
+  }
+
+  const debuggerHost =
+    Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.debuggerHost;
+  if (debuggerHost) {
+    const host = debuggerHost.split(':')[0];
+    return `http://${host}:8000/api/v1`;
+  }
+
+  return 'http://localhost:8000/api/v1';
+}
+
+const API_BASE_URL = resolveApiUrl();
 
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
+
+// SecureStore doesn't work on web -- fall back to localStorage
+const storage = {
+  getItem: async (key: string): Promise<string | null> => {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+      return;
+    }
+    await SecureStore.setItemAsync(key, value);
+  },
+  deleteItem: async (key: string): Promise<void> => {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+      return;
+    }
+    await SecureStore.deleteItemAsync(key);
+  },
+};
 
 const createApiClient = (): AxiosInstance => {
   const client = axios.create({
@@ -24,7 +69,7 @@ const createApiClient = (): AxiosInstance => {
   // Attach auth token before every request
   client.interceptors.request.use(
     async (config: InternalAxiosRequestConfig) => {
-      const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      const token = await storage.getItem(ACCESS_TOKEN_KEY);
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -43,15 +88,15 @@ const createApiClient = (): AxiosInstance => {
         originalRequest._retry = true;
 
         try {
-          const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+          const refreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
           if (refreshToken) {
             const response = await axios.post<AuthTokens>(
               `${API_BASE_URL}/auth/refresh`,
               { refresh_token: refreshToken }
             );
 
-            await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, response.data.access_token);
-            await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, response.data.refresh_token);
+            await storage.setItem(ACCESS_TOKEN_KEY, response.data.access_token);
+            await storage.setItem(REFRESH_TOKEN_KEY, response.data.refresh_token);
 
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${response.data.access_token}`;
@@ -73,20 +118,20 @@ const createApiClient = (): AxiosInstance => {
 export const apiClient = createApiClient();
 
 export const storeTokens = async (tokens: AuthTokens): Promise<void> => {
-  await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokens.access_token);
-  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refresh_token);
+  await storage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
+  await storage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
 };
 
 export const clearTokens = async (): Promise<void> => {
-  await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
-  await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+  await storage.deleteItem(ACCESS_TOKEN_KEY);
+  await storage.deleteItem(REFRESH_TOKEN_KEY);
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
-  return SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+  return storage.getItem(ACCESS_TOKEN_KEY);
 };
 
 export const hasStoredTokens = async (): Promise<boolean> => {
-  const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+  const token = await storage.getItem(ACCESS_TOKEN_KEY);
   return token !== null;
 };

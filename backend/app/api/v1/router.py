@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, users, routines, workouts, nutrition, calendar
+from app.api.v1.endpoints import auth, users, routines, workouts, nutrition, calendar, food_search
 
 api_router = APIRouter()
 
@@ -40,4 +40,10 @@ api_router.include_router(
     calendar.router,
     prefix="/calendar",
     tags=["Calendar"],
+)
+
+api_router.include_router(
+    food_search.router,
+    prefix="/nutrition",
+    tags=["Food Search"],
 )

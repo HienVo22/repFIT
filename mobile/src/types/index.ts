@@ -201,6 +201,80 @@ export interface CalendarDay {
   has_nutrition: boolean;
 }
 
+// Routine generation types
+
+export interface AvailableSplit {
+  key: string;
+  label: string;
+  min_days: number;
+  max_days: number;
+  day_names: string[];
+}
+
+export interface GeneratedExercise {
+  exercise_name: string;
+  muscle_group: string;
+  target_sets: number;
+  target_reps: string;
+  equipment: string;
+  order: number;
+}
+
+export interface GeneratedDay {
+  name: string;
+  day_of_week: string;
+  exercises: GeneratedExercise[];
+}
+
+export interface GenerateRoutineResponse {
+  split_type: string;
+  split_label: string;
+  intensity: string;
+  days: GeneratedDay[];
+}
+
+// Food search types
+
+export interface FoodSearchResult {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number;
+  serving_size: string;
+  fdc_id: number;
+}
+
+export interface FoodSearchResponse {
+  foods: FoodSearchResult[];
+  query: string;
+}
+
+// AI types
+
+export interface AIParsedFoodItem {
+  name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
+export interface AIParseFoodResponse {
+  items: AIParsedFoodItem[];
+  raw_text: string;
+}
+
+export interface AICoachNotes {
+  tips: string[];
+}
+
+export interface AIWorkoutSummary {
+  summary: string;
+  tips: string[];
+}
+
 // API types
 
 export interface ApiError {

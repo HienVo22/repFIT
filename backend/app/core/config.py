@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # External APIs
     USDA_API_KEY: str = ""
     USDA_API_BASE_URL: str = "https://api.nal.usda.gov/fdc/v1"
+    GEMINI_API_KEY: str = ""
 
     # Redis (for caching)
     REDIS_URL: str = "redis://localhost:6379/0"
