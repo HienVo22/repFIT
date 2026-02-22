@@ -3,6 +3,13 @@
 
 This is a AI fitness mobile app that let you log your customizable workouts/nutritions routine.
 
+## Demo
+
+
+
+https://github.com/user-attachments/assets/45a62f3f-61c3-49d0-92f5-57902e020cc9
+
+
 
 ## Tech Stack
 
