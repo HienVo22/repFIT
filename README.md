@@ -85,6 +85,3 @@ npx expo start
 ```
 
 
-## License
-
-MIT License
