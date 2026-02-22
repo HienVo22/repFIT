@@ -27,7 +27,7 @@ https://github.com/user-attachments/assets/45a62f3f-61c3-49d0-92f5-57902e020cc9
 
 * Personalized Profile Management: Allows users to edit their profile details, including username and email.
 
-* Customizable Workout Preferences: Features settings to select a preferred training split (e.g., Push/Pull/Legs) and a specific training frequency (e.g., 5 days per week).
+* Customizable Workout Preferences: Features settings to select a preferred training split like PPL and a specific training frequency (how many days a week).
 
 * AI Routine Builder: Offers an "Assistant" mode that generates a full workout program based on user-selected intensity and goals.
 
