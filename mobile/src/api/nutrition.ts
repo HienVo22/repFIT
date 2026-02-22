@@ -27,6 +27,21 @@ export const deleteNutritionLog = async (id: number): Promise<void> => {
   await apiClient.delete(`/nutrition/${id}`);
 };
 
+export const updateNutritionLog = async (
+  id: number,
+  data: { raw_input?: string; calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number }
+): Promise<NutritionLog> => {
+  const response = await apiClient.patch<NutritionLog>(`/nutrition/${id}`, data);
+  return response.data;
+};
+
+export const createNutritionLogForDate = async (
+  data: NutritionLogCreate & { date: string }
+): Promise<NutritionLog> => {
+  const response = await apiClient.post<NutritionLog>('/nutrition/', data);
+  return response.data;
+};
+
 export const searchFoods = async (query: string): Promise<FoodSearchResponse> => {
   const response = await apiClient.get<FoodSearchResponse>('/nutrition/search', {
     params: { query },

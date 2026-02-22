@@ -14,8 +14,7 @@ pydantic-settings==2.1.0
 
 # Authentication
 python-jose[cryptography]==3.3.0  # JWT encoding/decoding
-passlib[bcrypt]==1.7.4            # Password hashing
-bcrypt==4.1.2
+bcrypt==4.1.2                     # Password hashing (used directly)
 
 # HTTP Client (for USDA API)
 httpx==0.26.0             # Async HTTP client

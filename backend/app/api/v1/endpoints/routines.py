@@ -5,7 +5,7 @@ import random
 
 from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import CurrentUser, DbSession
@@ -191,7 +191,17 @@ async def list_routines(
     if day_of_week:
         query = query.where(Routine.day_of_week == day_of_week)
 
-    query = query.order_by(Routine.day_of_week, Routine.name)
+    day_order = case(
+        (Routine.day_of_week == "monday", 0),
+        (Routine.day_of_week == "tuesday", 1),
+        (Routine.day_of_week == "wednesday", 2),
+        (Routine.day_of_week == "thursday", 3),
+        (Routine.day_of_week == "friday", 4),
+        (Routine.day_of_week == "saturday", 5),
+        (Routine.day_of_week == "sunday", 6),
+        else_=7,
+    )
+    query = query.order_by(day_order, Routine.name)
 
     result = await db.execute(query)
     routines = result.scalars().all()

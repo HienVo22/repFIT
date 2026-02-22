@@ -11,6 +11,7 @@ from app.core.dependencies import CurrentUser, DbSession
 from app.models import DailyLog, NutritionLog
 from app.schemas.nutrition import (
     NutritionLogCreate,
+    NutritionLogUpdate,
     NutritionLogResponse,
     DailyNutritionSummary,
 )
@@ -43,9 +44,15 @@ async def create_nutrition_log(
     current_user: CurrentUser,
     db: DbSession,
 ):
-    """Log a nutrition entry for today."""
-    today = date.today()
-    daily_log = await _get_or_create_daily_log(db, current_user.id, today)
+    """Log a nutrition entry. Uses today by default, or a specific date if provided."""
+    if data.date:
+        try:
+            log_date = date.fromisoformat(data.date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+    else:
+        log_date = date.today()
+    daily_log = await _get_or_create_daily_log(db, current_user.id, log_date)
 
     entry = NutritionLog(
         daily_log_id=daily_log.id,
@@ -126,6 +133,40 @@ async def delete_nutrition_log(
 
     await db.delete(entry)
     await db.commit()
+
+
+@router.patch("/{log_id}", response_model=NutritionLogResponse)
+async def update_nutrition_log(
+    log_id: int,
+    data: NutritionLogUpdate,
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    """Update a nutrition log entry."""
+    result = await db.execute(
+        select(NutritionLog)
+        .join(DailyLog)
+        .where(
+            NutritionLog.id == log_id,
+            DailyLog.user_id == current_user.id,
+        )
+    )
+    entry = result.scalar_one_or_none()
+
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nutrition log not found",
+        )
+
+    for field in ("raw_input", "calories", "protein_g", "carbs_g", "fat_g"):
+        value = getattr(data, field, None)
+        if value is not None:
+            setattr(entry, field, value)
+
+    await db.commit()
+    await db.refresh(entry)
+    return entry
 
 
 # ── AI food parsing ──

@@ -64,16 +64,21 @@ export default function ProfileScreen() {
 
       <View style={styles.menuSection}>
         <Text style={styles.sectionTitle}>Account</Text>
-        <MenuItem icon="person-outline" label="Edit Profile" onPress={() => {}} />
-        <MenuItem icon="notifications-outline" label="Notifications" onPress={() => {}} />
-        <MenuItem icon="barbell-outline" label="Workout Preferences" onPress={() => {}} />
-        <MenuItem icon="nutrition-outline" label="Nutrition Goals" onPress={() => {}} />
-      </View>
-
-      <View style={styles.menuSection}>
-        <Text style={styles.sectionTitle}>App</Text>
-        <MenuItem icon="help-circle-outline" label="Help & Support" onPress={() => {}} />
-        <MenuItem icon="document-text-outline" label="Terms & Privacy" onPress={() => {}} />
+        <MenuItem
+          icon="person-outline"
+          label="Edit Profile"
+          onPress={() => router.push('/edit-profile')}
+        />
+        <MenuItem
+          icon="barbell-outline"
+          label="Workout Preferences"
+          onPress={() => router.push('/workout-preferences')}
+        />
+        <MenuItem
+          icon="nutrition-outline"
+          label="Nutrition Goals"
+          onPress={() => router.push('/nutrition-goals')}
+        />
       </View>
 
       <View style={styles.menuSection}>

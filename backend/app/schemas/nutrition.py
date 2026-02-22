@@ -12,6 +12,15 @@ class NutritionLogCreate(BaseModel):
     fat_g: float = Field(default=0, ge=0)
     fiber_g: float = Field(default=0, ge=0)
     meal_type: str | None = Field(default=None, max_length=50)
+    date: str | None = Field(default=None, description="Optional YYYY-MM-DD to log for a specific day")
+
+
+class NutritionLogUpdate(BaseModel):
+    raw_input: str | None = Field(default=None, max_length=500)
+    calories: float | None = Field(default=None, ge=0)
+    protein_g: float | None = Field(default=None, ge=0)
+    carbs_g: float | None = Field(default=None, ge=0)
+    fat_g: float | None = Field(default=None, ge=0)
 
 
 class NutritionLogResponse(BaseModel):

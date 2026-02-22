@@ -16,6 +16,14 @@ from app.core.security import (
 from app.models import User
 from app.schemas import UserCreate, UserResponse, Token, RefreshTokenRequest
 
+# #region agent log
+import json, time as _time
+_DEBUG_LOG = "/Users/hienvo/workout_app/.cursor/debug-e83d22.log"
+def _dlog(loc, msg, data=None):
+    with open(_DEBUG_LOG, "a") as f:
+        f.write(json.dumps({"sessionId":"e83d22","location":loc,"message":msg,"data":data or {},"timestamp":int(_time.time()*1000)}) + "\n")
+# #endregion
+
 router = APIRouter()
 
 
@@ -25,6 +33,10 @@ async def register(
     db: AsyncSession = Depends(get_db),
 ):
     """Register a new user."""
+    # #region agent log
+    _dlog("auth.py:register:entry", "register endpoint called", {"email": user_data.email, "username": user_data.username, "hypothesisId": "A"})
+    _t0 = _time.time()
+    # #endregion
     result = await db.execute(
         select(User).where(User.email == user_data.email)
     )
@@ -43,17 +55,29 @@ async def register(
             detail="Username already taken",
         )
 
+    # #region agent log
+    _t1 = _time.time()
+    _dlog("auth.py:register:pre-hash", "about to hash password", {"elapsed_check_ms": round((_t1-_t0)*1000), "hypothesisId": "B"})
+    # #endregion
     user = User(
         email=user_data.email,
         username=user_data.username,
         full_name=user_data.full_name,
         hashed_password=hash_password(user_data.password),
     )
+    # #region agent log
+    _t2 = _time.time()
+    _dlog("auth.py:register:post-hash", "password hashed", {"hash_ms": round((_t2-_t1)*1000), "total_ms": round((_t2-_t0)*1000), "hypothesisId": "B"})
+    # #endregion
 
     db.add(user)
     await db.commit()
     await db.refresh(user)
 
+    # #region agent log
+    _t3 = _time.time()
+    _dlog("auth.py:register:done", "register complete", {"total_ms": round((_t3-_t0)*1000), "user_id": user.id, "hypothesisId": "A"})
+    # #endregion
     return user
 
 

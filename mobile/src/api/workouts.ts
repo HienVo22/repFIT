@@ -29,3 +29,15 @@ export const getWorkoutSummary = async (workoutData: {
   const response = await apiClient.post<AIWorkoutSummary>('/workouts/summary', workoutData);
   return response.data;
 };
+
+export const updateWorkoutSession = async (
+  id: number,
+  data: { notes?: string; add_sets?: object[]; remove_set_ids?: number[] }
+): Promise<WorkoutSession> => {
+  const response = await apiClient.patch<WorkoutSession>(`/workouts/${id}`, data);
+  return response.data;
+};
+
+export const deleteWorkoutSession = async (id: number): Promise<void> => {
+  await apiClient.delete(`/workouts/${id}`);
+};

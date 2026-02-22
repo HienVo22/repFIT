@@ -29,6 +29,9 @@ function resolveApiUrl(): string {
 }
 
 const API_BASE_URL = resolveApiUrl();
+// #region agent log
+console.log('[DEBUG-e83d22] API_BASE_URL resolved to:', API_BASE_URL);
+// #endregion
 
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
@@ -60,7 +63,7 @@ const storage = {
 const createApiClient = (): AxiosInstance => {
   const client = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000,
+    timeout: 30000,
     headers: {
       'Content-Type': 'application/json',
     },

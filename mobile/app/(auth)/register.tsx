@@ -26,6 +26,9 @@ export default function RegisterScreen() {
   const registerMutation = useMutation({
     mutationFn: register,
     onSuccess: async () => {
+      // #region agent log
+      console.log('[DEBUG-e83d22] register mutation onSuccess fired');
+      // #endregion
       try {
         setErrorMessage('');
         await login({ email, password });
@@ -38,6 +41,9 @@ export default function RegisterScreen() {
       }
     },
     onError: (error: any) => {
+      // #region agent log
+      console.log('[DEBUG-e83d22] register mutation onError', error.message, error.code, error.response?.status, error.response?.data);
+      // #endregion
       const message = error.response?.data?.detail || error.message || 'Registration failed. Please try again.';
       setErrorMessage(message);
       showAlert('Registration Failed', message);
@@ -58,6 +64,9 @@ export default function RegisterScreen() {
       setErrorMessage('Password must be at least 8 characters');
       return;
     }
+    // #region agent log
+    console.log('[DEBUG-e83d22] handleRegister called, about to mutate', { username, email });
+    // #endregion
     registerMutation.mutate({ username, email, password });
   };
 

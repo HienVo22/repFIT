@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  FlatList,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,8 +19,24 @@ import {
   DayOfWeek,
 } from '@/types';
 import { showAlert } from '@/utils/alert';
+import { usePreferencesStore } from '@/store/preferencesStore';
 
-type WizardStep = 'days' | 'split' | 'intensity' | 'preview';
+type WizardStep = 'days' | 'split' | 'intensity' | 'schedule' | 'preview';
+
+const WEEKDAYS: { key: DayOfWeek; short: string; full: string }[] = [
+  { key: 'monday', short: 'M', full: 'Mon' },
+  { key: 'tuesday', short: 'T', full: 'Tue' },
+  { key: 'wednesday', short: 'W', full: 'Wed' },
+  { key: 'thursday', short: 'T', full: 'Thu' },
+  { key: 'friday', short: 'F', full: 'Fri' },
+  { key: 'saturday', short: 'S', full: 'Sat' },
+  { key: 'sunday', short: 'S', full: 'Sun' },
+];
+
+const WEEKDAY_ORDER: Record<DayOfWeek, number> = {
+  monday: 0, tuesday: 1, wednesday: 2, thursday: 3,
+  friday: 4, saturday: 5, sunday: 6,
+};
 
 const INTENSITY_OPTIONS = [
   {
@@ -45,8 +60,9 @@ const INTENSITY_OPTIONS = [
 ];
 
 export default function RoutineBuilderScreen() {
+  const workoutPrefs = usePreferencesStore((s) => s.workoutPrefs);
   const [step, setStep] = useState<WizardStep>('days');
-  const [daysPerWeek, setDaysPerWeek] = useState(3);
+  const [daysPerWeek, setDaysPerWeek] = useState(workoutPrefs?.daysPerWeek ?? 3);
   const [selectedSplit, setSelectedSplit] = useState<AvailableSplit | null>(null);
   const [selectedIntensity, setSelectedIntensity] = useState('');
   const [generated, setGenerated] = useState<GenerateRoutineResponse | null>(null);
@@ -54,6 +70,8 @@ export default function RoutineBuilderScreen() {
   const [coachTips, setCoachTips] = useState<string[]>([]);
   const [loadingTips, setLoadingTips] = useState(false);
   const [tipsExpanded, setTipsExpanded] = useState(false);
+
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
 
   const queryClient = useQueryClient();
 
@@ -70,7 +88,8 @@ export default function RoutineBuilderScreen() {
       setGenerated(data);
       setCoachTips([]);
       setTipsExpanded(false);
-      setStep('preview');
+      setSelectedDays([]);
+      setStep('schedule');
     },
     onError: () => showAlert('Error', 'Failed to generate routine.'),
   });
@@ -89,6 +108,48 @@ export default function RoutineBuilderScreen() {
   const handleSelectIntensity = (key: string) => {
     setSelectedIntensity(key);
     generateMutation.mutate();
+  };
+
+  const toggleDay = (day: DayOfWeek) => {
+    setSelectedDays((prev) => {
+      if (prev.includes(day)) return prev.filter((d) => d !== day);
+      if (prev.length >= daysPerWeek) return prev;
+      return [...prev, day];
+    });
+  };
+
+  const handleScheduleConfirm = () => {
+    if (selectedDays.length !== daysPerWeek) {
+      showAlert('Select Days', `Please select exactly ${daysPerWeek} days.`);
+      return;
+    }
+    if (!generated) return;
+
+    const sortedSelectedDays = [...selectedDays].sort(
+      (a, b) => WEEKDAY_ORDER[a] - WEEKDAY_ORDER[b]
+    );
+
+    const updatedDays = generated.days.map((day, idx) => ({
+      ...day,
+      day_of_week: sortedSelectedDays[idx],
+    }));
+
+    setGenerated({ ...generated, days: updatedDays });
+    setStep('preview');
+  };
+
+  const getSchedulePreview = (): { day: DayOfWeek; label: string; isRest: boolean }[] => {
+    const sortedSelected = [...selectedDays].sort(
+      (a, b) => WEEKDAY_ORDER[a] - WEEKDAY_ORDER[b]
+    );
+
+    return WEEKDAYS.map((wd) => {
+      const assignedIdx = sortedSelected.indexOf(wd.key);
+      if (assignedIdx >= 0 && generated && assignedIdx < generated.days.length) {
+        return { day: wd.key, label: generated.days[assignedIdx].name, isRest: false };
+      }
+      return { day: wd.key, label: 'Rest', isRest: true };
+    });
   };
 
   const handleSaveAll = async () => {
@@ -121,7 +182,8 @@ export default function RoutineBuilderScreen() {
   const handleBack = () => {
     if (step === 'split') setStep('days');
     else if (step === 'intensity') setStep('split');
-    else if (step === 'preview') setStep('intensity');
+    else if (step === 'schedule') setStep('intensity');
+    else if (step === 'preview') setStep('schedule');
     else router.back();
   };
 
@@ -163,6 +225,8 @@ export default function RoutineBuilderScreen() {
       return { ...prev, days: newDays };
     });
   }, []);
+
+  const WIZARD_STEPS: WizardStep[] = ['days', 'split', 'intensity', 'schedule', 'preview'];
 
   const renderDaysStep = () => (
     <View style={styles.stepContainer}>
@@ -233,7 +297,10 @@ export default function RoutineBuilderScreen() {
         {INTENSITY_OPTIONS.map((opt) => (
           <TouchableOpacity
             key={opt.key}
-            style={styles.optionCard}
+            style={[
+              styles.optionCard,
+              workoutPrefs?.defaultIntensity === opt.key && styles.optionCardHighlighted,
+            ]}
             onPress={() => handleSelectIntensity(opt.key)}
             disabled={generateMutation.isPending}
           >
@@ -248,6 +315,66 @@ export default function RoutineBuilderScreen() {
       )}
     </View>
   );
+
+  const renderScheduleStep = () => {
+    const preview = getSchedulePreview();
+    return (
+      <ScrollView style={styles.stepContainer}>
+        <Text style={styles.stepTitle}>Schedule your week</Text>
+        <Text style={styles.stepSubtitle}>
+          Select {daysPerWeek} training days · {selectedDays.length}/{daysPerWeek} chosen
+        </Text>
+
+        <View style={styles.weekRow}>
+          {WEEKDAYS.map((wd, i) => {
+            const isActive = selectedDays.includes(wd.key);
+            return (
+              <TouchableOpacity
+                key={wd.key}
+                style={[styles.weekPill, isActive && styles.weekPillActive]}
+                onPress={() => toggleDay(wd.key)}
+              >
+                <Text style={[styles.weekPillText, isActive && styles.weekPillTextActive]}>
+                  {wd.short}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {selectedDays.length > 0 && (
+          <View style={styles.schedulePreview}>
+            {preview.map((item) => (
+              <View
+                key={item.day}
+                style={[styles.scheduleRow, item.isRest && styles.scheduleRowRest]}
+              >
+                <Text style={[styles.scheduleDayLabel, item.isRest && styles.scheduleDayLabelRest]}>
+                  {WEEKDAYS.find((w) => w.key === item.day)?.full}
+                </Text>
+                <Text
+                  style={[styles.scheduleWorkout, item.isRest && styles.scheduleWorkoutRest]}
+                >
+                  {item.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[
+            styles.confirmScheduleBtn,
+            selectedDays.length !== daysPerWeek && styles.confirmScheduleBtnDisabled,
+          ]}
+          onPress={handleScheduleConfirm}
+          disabled={selectedDays.length !== daysPerWeek}
+        >
+          <Text style={styles.confirmScheduleText}>Confirm Schedule</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  };
 
   const renderExercise = (ex: GeneratedExercise, dayIdx: number, exIdx: number) => (
     <View key={`${dayIdx}-${exIdx}`} style={styles.exerciseRow}>
@@ -266,51 +393,68 @@ export default function RoutineBuilderScreen() {
     </View>
   );
 
-  const renderPreviewStep = () => (
-    <ScrollView style={styles.previewScroll} contentContainerStyle={{ paddingBottom: 120 }}>
-      <Text style={styles.stepTitle}>{generated?.split_label}</Text>
-      <Text style={styles.stepSubtitle}>
-        {generated?.intensity} intensity · {generated?.days.length} days
-      </Text>
+  const renderPreviewStep = () => {
+    const fullWeek = WEEKDAYS.map((wd) => {
+      const workout = generated?.days.find((d) => d.day_of_week === wd.key);
+      return { weekday: wd, workout: workout ?? null };
+    });
 
-      {/* Coach Notes */}
-      <TouchableOpacity
-        style={styles.coachButton}
-        onPress={coachTips.length > 0 ? () => setTipsExpanded(!tipsExpanded) : fetchCoachTips}
-        disabled={loadingTips}
-      >
-        <Ionicons name="sparkles" size={18} color="#4A6FA5" />
-        <Text style={styles.coachButtonText}>
-          {loadingTips ? 'Getting AI tips...' : coachTips.length > 0 ? "Coach's Notes" : 'Get AI Coach Tips'}
+    return (
+      <ScrollView style={styles.previewScroll} contentContainerStyle={{ paddingBottom: 120 }}>
+        <Text style={styles.stepTitle}>{generated?.split_label}</Text>
+        <Text style={styles.stepSubtitle}>
+          {generated?.intensity} intensity · {generated?.days.length} days
         </Text>
-        {loadingTips && <ActivityIndicator size="small" color="#4A6FA5" />}
-        {coachTips.length > 0 && (
-          <Ionicons name={tipsExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#8A8A8A" />
-        )}
-      </TouchableOpacity>
 
-      {tipsExpanded && coachTips.length > 0 && (
-        <View style={styles.coachCard}>
-          {coachTips.map((tip, i) => (
-            <View key={i} style={styles.tipRow}>
-              <Text style={styles.tipBullet}>{i + 1}</Text>
-              <Text style={styles.tipText}>{tip}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+        <TouchableOpacity
+          style={styles.coachButton}
+          onPress={coachTips.length > 0 ? () => setTipsExpanded(!tipsExpanded) : fetchCoachTips}
+          disabled={loadingTips}
+        >
+          <Ionicons name="sparkles" size={18} color="#4A6FA5" />
+          <Text style={styles.coachButtonText}>
+            {loadingTips ? 'Getting AI tips...' : coachTips.length > 0 ? "Coach's Notes" : 'Get AI Coach Tips'}
+          </Text>
+          {loadingTips && <ActivityIndicator size="small" color="#4A6FA5" />}
+          {coachTips.length > 0 && (
+            <Ionicons name={tipsExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#8A8A8A" />
+          )}
+        </TouchableOpacity>
 
-      {generated?.days.map((day, dayIdx) => (
-        <View key={dayIdx} style={styles.dayCard}>
-          <View style={styles.dayHeader}>
-            <Text style={styles.dayName}>{day.name}</Text>
-            <Text style={styles.dayDow}>{day.day_of_week}</Text>
+        {tipsExpanded && coachTips.length > 0 && (
+          <View style={styles.coachCard}>
+            {coachTips.map((tip, i) => (
+              <View key={i} style={styles.tipRow}>
+                <Text style={styles.tipBullet}>{i + 1}</Text>
+                <Text style={styles.tipText}>{tip}</Text>
+              </View>
+            ))}
           </View>
-          {day.exercises.map((ex, exIdx) => renderExercise(ex, dayIdx, exIdx))}
-        </View>
-      ))}
-    </ScrollView>
-  );
+        )}
+
+        {fullWeek.map(({ weekday, workout }) => {
+          if (workout) {
+            const dayIdx = generated!.days.indexOf(workout);
+            return (
+              <View key={weekday.key} style={styles.dayCard}>
+                <View style={styles.dayHeader}>
+                  <Text style={styles.dayName}>{workout.name}</Text>
+                  <Text style={styles.dayDow}>{weekday.full}</Text>
+                </View>
+                {workout.exercises.map((ex, exIdx) => renderExercise(ex, dayIdx, exIdx))}
+              </View>
+            );
+          }
+          return (
+            <View key={weekday.key} style={styles.restDayRow}>
+              <Text style={styles.restDayRowLabel}>{weekday.full}</Text>
+              <Text style={styles.restDayRowText}>Rest</Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -322,19 +466,19 @@ export default function RoutineBuilderScreen() {
           {step === 'days' && 'Build Routine'}
           {step === 'split' && 'Choose Split'}
           {step === 'intensity' && 'Set Intensity'}
+          {step === 'schedule' && 'Schedule'}
           {step === 'preview' && 'Preview'}
         </Text>
         <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.progress}>
-        {['days', 'split', 'intensity', 'preview'].map((s, i) => (
+        {WIZARD_STEPS.map((s, i) => (
           <View
             key={s}
             style={[
               styles.progressDot,
-              (step === s || ['days', 'split', 'intensity', 'preview'].indexOf(step) > i) &&
-                styles.progressDotActive,
+              (step === s || WIZARD_STEPS.indexOf(step) > i) && styles.progressDotActive,
             ]}
           />
         ))}
@@ -343,6 +487,7 @@ export default function RoutineBuilderScreen() {
       {step === 'days' && renderDaysStep()}
       {step === 'split' && renderSplitStep()}
       {step === 'intensity' && renderIntensityStep()}
+      {step === 'schedule' && renderScheduleStep()}
       {step === 'preview' && renderPreviewStep()}
 
       {step === 'preview' && (
@@ -449,6 +594,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2A2A2A',
   },
+  optionCardHighlighted: {
+    borderColor: '#4A6FA5',
+    backgroundColor: 'rgba(74, 111, 165, 0.08)',
+  },
   optionTitle: {
     fontSize: 17,
     fontWeight: '400',
@@ -471,6 +620,82 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     lineHeight: 22,
+  },
+
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginBottom: 24,
+  },
+  weekPill: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 4,
+    backgroundColor: '#1E1E1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    maxWidth: 48,
+  },
+  weekPillActive: {
+    borderColor: '#4A6FA5',
+    backgroundColor: 'rgba(74,111,165,0.2)',
+  },
+  weekPillText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#8A8A8A',
+  },
+  weekPillTextActive: { color: '#4A6FA5' },
+
+  schedulePreview: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 24,
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2A2A2A',
+  },
+  scheduleRowRest: { opacity: 0.5 },
+  scheduleDayLabel: {
+    fontSize: 14,
+    color: '#F5F5F5',
+    fontWeight: '400',
+    width: 50,
+  },
+  scheduleDayLabelRest: { color: '#8A8A8A' },
+  scheduleWorkout: {
+    fontSize: 14,
+    color: '#4A6FA5',
+    fontWeight: '500',
+  },
+  scheduleWorkoutRest: {
+    color: '#8A8A8A',
+    fontWeight: '400',
+    fontStyle: 'italic',
+  },
+  confirmScheduleBtn: {
+    backgroundColor: '#4A6FA5',
+    borderRadius: 4,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  confirmScheduleBtnDisabled: { opacity: 0.4 },
+  confirmScheduleText: {
+    color: '#F5F5F5',
+    fontSize: 16,
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
 
   previewScroll: { flex: 1, padding: 16 },
@@ -555,6 +780,28 @@ const styles = StyleSheet.create({
   exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: 15, color: '#F5F5F5', marginBottom: 2 },
   exerciseMeta: { fontSize: 12, color: '#8A8A8A' },
+
+  restDayRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    opacity: 0.5,
+  },
+  restDayRowLabel: {
+    fontSize: 14,
+    color: '#8A8A8A',
+    fontWeight: '400',
+  },
+  restDayRowText: {
+    fontSize: 14,
+    color: '#8A8A8A',
+    fontStyle: 'italic',
+  },
 
   footer: {
     position: 'absolute',

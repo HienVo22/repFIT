@@ -37,6 +37,12 @@ class WorkoutSessionCreate(BaseModel):
     completed_sets: list[CompletedSetCreate] = Field(default_factory=list)
 
 
+class WorkoutSessionUpdate(BaseModel):
+    notes: str | None = None
+    add_sets: list[CompletedSetCreate] = Field(default_factory=list)
+    remove_set_ids: list[int] = Field(default_factory=list)
+
+
 class WorkoutSessionResponse(BaseModel):
     id: int
     daily_log_id: int

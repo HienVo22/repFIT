@@ -14,6 +14,7 @@ from app.models import DailyLog, WorkoutSession, CompletedSet
 logger = logging.getLogger(__name__)
 from app.schemas.workout import (
     WorkoutSessionCreate,
+    WorkoutSessionUpdate,
     WorkoutSessionResponse,
     WorkoutSessionListResponse,
 )
@@ -136,6 +137,82 @@ async def get_workout(
         )
 
     return session
+
+
+@router.patch("/{session_id}", response_model=WorkoutSessionResponse)
+async def update_workout(
+    session_id: int,
+    data: WorkoutSessionUpdate,
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    """Update a workout session -- add/remove sets, update notes."""
+    result = await db.execute(
+        select(WorkoutSession)
+        .options(selectinload(WorkoutSession.completed_sets))
+        .join(DailyLog)
+        .where(
+            WorkoutSession.id == session_id,
+            DailyLog.user_id == current_user.id,
+        )
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workout session not found",
+        )
+
+    if data.notes is not None:
+        session.notes = data.notes
+
+    if data.remove_set_ids:
+        for cs in list(session.completed_sets):
+            if cs.id in data.remove_set_ids:
+                await db.delete(cs)
+
+    for s in data.add_sets:
+        db.add(CompletedSet(
+            workout_session_id=session.id,
+            exercise_name=s.exercise_name,
+            set_number=s.set_number,
+            reps_completed=s.reps_completed,
+            weight_used=s.weight_used,
+            is_completed=s.is_completed,
+            notes=s.notes,
+        ))
+
+    await db.commit()
+    await db.refresh(session)
+    return session
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workout(
+    session_id: int,
+    current_user: CurrentUser,
+    db: DbSession,
+):
+    """Delete a workout session."""
+    result = await db.execute(
+        select(WorkoutSession)
+        .join(DailyLog)
+        .where(
+            WorkoutSession.id == session_id,
+            DailyLog.user_id == current_user.id,
+        )
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workout session not found",
+        )
+
+    await db.delete(session)
+    await db.commit()
 
 
 # ── AI Workout Summary ──

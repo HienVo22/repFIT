@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import {
   getNutritionByDate,
   createNutritionLog,
@@ -20,8 +21,9 @@ import {
 import { NutritionLog, FoodSearchResult } from '@/types';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { showAlert } from '@/utils/alert';
+import { usePreferencesStore, type NutritionGoals } from '@/store/preferencesStore';
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+type PrefsState = { nutritionGoals: NutritionGoals | null };
 
 export default function NutritionScreen() {
   const [input, setInput] = useState('');
@@ -31,20 +33,32 @@ export default function NutritionScreen() {
   const [fat, setFat] = useState('');
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [showManualFields, setShowManualFields] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
 
+  const today = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const nutritionGoals = usePreferencesStore((s: PrefsState) => s.nutritionGoals);
+  const goalCalories = nutritionGoals?.calories ?? 2200;
+  const goalProtein = nutritionGoals?.protein_g ?? 150;
+  const goalCarbs = nutritionGoals?.carbs_g ?? 250;
+  const goalFat = nutritionGoals?.fat_g ?? 80;
+  const hasGoals = nutritionGoals !== null;
+
   const { data: summary } = useQuery({
-    queryKey: ['nutrition', todayStr()],
-    queryFn: () => getNutritionByDate(todayStr()),
+    queryKey: ['nutrition', today],
+    queryFn: () => getNutritionByDate(today),
     staleTime: 30 * 1000,
   });
 
   const logMutation = useMutation({
     mutationFn: createNutritionLog,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['nutrition', todayStr()] });
+      queryClient.invalidateQueries({ queryKey: ['nutrition', today] });
       resetForm();
     },
     onError: () => showAlert('Error', 'Failed to log nutrition entry.'),
@@ -53,7 +67,7 @@ export default function NutritionScreen() {
   const deleteMutation = useMutation({
     mutationFn: deleteNutritionLog,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['nutrition', todayStr()] });
+      queryClient.invalidateQueries({ queryKey: ['nutrition', today] });
     },
   });
 
@@ -64,7 +78,7 @@ export default function NutritionScreen() {
     setCarbs('');
     setFat('');
     setSearchResults([]);
-    setShowManualFields(false);
+    setManualMode(false);
   };
 
   const handleInputChange = useCallback((text: string) => {
@@ -73,7 +87,7 @@ export default function NutritionScreen() {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (text.trim().length < 2) {
+    if (manualMode || text.trim().length < 2) {
       setSearching(false);
       return;
     }
@@ -89,7 +103,7 @@ export default function NutritionScreen() {
         setSearching(false);
       }
     }, 500);
-  }, []);
+  }, [manualMode]);
 
   const handleSelectFood = (food: FoodSearchResult) => {
     setInput(food.name);
@@ -98,7 +112,20 @@ export default function NutritionScreen() {
     setCarbs(Math.round(food.carbs_g).toString());
     setFat(Math.round(food.fat_g).toString());
     setSearchResults([]);
-    setShowManualFields(true);
+  };
+
+  const handleToggleMode = () => {
+    if (manualMode) {
+      setManualMode(false);
+      setCalories('');
+      setProtein('');
+      setCarbs('');
+      setFat('');
+    } else {
+      setManualMode(true);
+      setSearchResults([]);
+      setSearching(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -119,10 +146,7 @@ export default function NutritionScreen() {
   const totalFat = summary?.total_fat_g ?? 0;
   const logs: NutritionLog[] = summary?.logs ?? [];
 
-  const goalCalories = 2200;
-  const goalProtein = 150;
-  const goalCarbs = 250;
-  const goalFat = 80;
+  const showMacroInputs = manualMode || !!(calories || protein || carbs || fat);
 
   const MacroProgress = ({
     label,
@@ -165,6 +189,17 @@ export default function NutritionScreen() {
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Today's Nutrition</Text>
 
+          <TouchableOpacity
+            style={styles.setGoalsBanner}
+            onPress={() => router.push('/nutrition-goals')}
+          >
+            <Ionicons name="calculator-outline" size={16} color="#4A6FA5" />
+            <Text style={styles.setGoalsText}>
+              {hasGoals ? 'Recalculate goals' : 'Set your nutrition goals'}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#4A6FA5" />
+          </TouchableOpacity>
+
           <View style={styles.caloriesContainer}>
             <View style={styles.caloriesCircle}>
               <Text style={styles.caloriesValue}>{Math.round(totalCalories)}</Text>
@@ -197,6 +232,9 @@ export default function NutritionScreen() {
                 </View>
                 <View style={styles.mealRight}>
                   <Text style={styles.mealCalories}>{Math.round(meal.calories)} cal</Text>
+                  <Text style={styles.mealMacros}>
+                    {Math.round(meal.protein_g)}P · {Math.round(meal.carbs_g)}C · {Math.round(meal.fat_g)}F
+                  </Text>
                   <TouchableOpacity
                     onPress={() => deleteMutation.mutate(meal.id)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -211,21 +249,34 @@ export default function NutritionScreen() {
       </ScrollView>
 
       <View style={styles.inputContainer}>
-        <View style={styles.searchRow}>
+        {!manualMode && (
+          <View style={styles.searchRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Search food or describe a meal..."
+              placeholderTextColor="#8A8A8A"
+              value={input}
+              onChangeText={handleInputChange}
+              maxLength={200}
+            />
+            {searching && (
+              <ActivityIndicator size="small" color="#4A6FA5" style={styles.searchSpinner} />
+            )}
+          </View>
+        )}
+
+        {manualMode && (
           <TextInput
             style={styles.input}
-            placeholder="Search food or describe a meal..."
+            placeholder="Describe what you ate..."
             placeholderTextColor="#8A8A8A"
             value={input}
-            onChangeText={handleInputChange}
+            onChangeText={setInput}
             maxLength={200}
           />
-          {searching && (
-            <ActivityIndicator size="small" color="#4A6FA5" style={styles.searchSpinner} />
-          )}
-        </View>
+        )}
 
-        {searchResults.length > 0 && (
+        {!manualMode && searchResults.length > 0 && (
           <ScrollView style={styles.searchDropdown} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
             {searchResults.map((food, idx) => (
               <TouchableOpacity
@@ -235,31 +286,40 @@ export default function NutritionScreen() {
               >
                 <Text style={styles.searchItemName} numberOfLines={1}>{food.name}</Text>
                 <Text style={styles.searchItemMacros}>
-                  {Math.round(food.calories)} cal · {Math.round(food.protein_g)}p · {Math.round(food.carbs_g)}c · {Math.round(food.fat_g)}f
+                  {Math.round(food.calories)} cal · {Math.round(food.protein_g)}P · {Math.round(food.carbs_g)}C · {Math.round(food.fat_g)}F
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         )}
 
-        {(showManualFields || (calories || protein || carbs || fat)) && (
+        {showMacroInputs && (
           <View style={styles.macroInputRow}>
-            <TextInput style={styles.macroInput} placeholder="cal" placeholderTextColor="#8A8A8A" value={calories} onChangeText={setCalories} keyboardType="numeric" />
-            <TextInput style={styles.macroInput} placeholder="P (g)" placeholderTextColor="#8A8A8A" value={protein} onChangeText={setProtein} keyboardType="numeric" />
-            <TextInput style={styles.macroInput} placeholder="C (g)" placeholderTextColor="#8A8A8A" value={carbs} onChangeText={setCarbs} keyboardType="numeric" />
-            <TextInput style={styles.macroInput} placeholder="F (g)" placeholderTextColor="#8A8A8A" value={fat} onChangeText={setFat} keyboardType="numeric" />
+            <View style={styles.macroInputCol}>
+              <Text style={styles.macroInputLabel}>cal</Text>
+              <TextInput style={styles.macroInput} placeholderTextColor="#8A8A8A" value={calories} onChangeText={setCalories} keyboardType="numeric" />
+            </View>
+            <View style={styles.macroInputCol}>
+              <Text style={styles.macroInputLabel}>P</Text>
+              <TextInput style={styles.macroInput} placeholderTextColor="#8A8A8A" value={protein} onChangeText={setProtein} keyboardType="numeric" />
+            </View>
+            <View style={styles.macroInputCol}>
+              <Text style={styles.macroInputLabel}>C</Text>
+              <TextInput style={styles.macroInput} placeholderTextColor="#8A8A8A" value={carbs} onChangeText={setCarbs} keyboardType="numeric" />
+            </View>
+            <View style={styles.macroInputCol}>
+              <Text style={styles.macroInputLabel}>F</Text>
+              <TextInput style={styles.macroInput} placeholderTextColor="#8A8A8A" value={fat} onChangeText={setFat} keyboardType="numeric" />
+            </View>
           </View>
         )}
 
         <View style={styles.actionRow}>
-          {!showManualFields && !calories && (
-            <TouchableOpacity
-              style={styles.manualToggle}
-              onPress={() => setShowManualFields(true)}
-            >
-              <Text style={styles.manualToggleText}>Enter manually</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={styles.manualToggle} onPress={handleToggleMode}>
+            <Text style={styles.manualToggleText}>
+              {manualMode ? 'Search food' : 'Enter manually'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.submitButton, (!input.trim() || logMutation.isPending) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
@@ -293,6 +353,19 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
+  setGoalsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(74,111,165,0.1)',
+    borderRadius: 4,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(74,111,165,0.2)',
+  },
+  setGoalsText: { fontSize: 13, color: '#4A6FA5', fontWeight: '500' },
   caloriesContainer: { alignItems: 'center', marginBottom: 24 },
   caloriesCircle: {
     width: 140,
@@ -361,12 +434,18 @@ const styles = StyleSheet.create({
   mealInfo: { flex: 1 },
   mealTime: { fontSize: 11, color: '#8A8A8A', letterSpacing: 0.5 },
   mealDescription: { fontSize: 15, color: '#F5F5F5', marginTop: 4 },
-  mealRight: { alignItems: 'flex-end', gap: 6 },
+  mealRight: { alignItems: 'flex-end', gap: 4 },
   mealCalories: {
     fontSize: 14,
     fontWeight: '400',
     color: '#4A6FA5',
     fontVariant: ['tabular-nums'],
+  },
+  mealMacros: {
+    fontSize: 11,
+    color: '#8A8A8A',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.3,
   },
 
   inputContainer: {
@@ -399,8 +478,16 @@ const styles = StyleSheet.create({
   searchItemName: { fontSize: 14, color: '#F5F5F5', marginBottom: 2 },
   searchItemMacros: { fontSize: 12, color: '#8A8A8A' },
   macroInputRow: { flexDirection: 'row', gap: 8 },
+  macroInputCol: { flex: 1, alignItems: 'center', gap: 4 },
+  macroInputLabel: {
+    fontSize: 11,
+    color: '#8A8A8A',
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
   macroInput: {
-    flex: 1,
+    width: '100%',
     backgroundColor: '#121212',
     borderRadius: 4,
     padding: 10,
