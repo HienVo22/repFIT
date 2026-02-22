@@ -20,7 +20,30 @@ https://github.com/user-attachments/assets/45a62f3f-61c3-49d0-92f5-57902e020cc9
 | Migrations | Alembic |
 | Auth | JWT (OAuth2) |
 
-## Getting Started
+## Features
+
+
+* User Authentication: Includes a secure login and logout system, with a dedicated sign up option for new users.
+
+* Personalized Profile Management: Allows users to edit their profile details, including username and email.
+
+* Customizable Workout Preferences: Features settings to select a preferred training split (e.g., Push/Pull/Legs) and a specific training frequency (e.g., 5 days per week).
+
+* AI Routine Builder: Offers an "Assistant" mode that generates a full workout program based on user-selected intensity and goals.
+
+* Manual Routine Creation: Provides an interface to build custom workout routines from scratch for total control over exercises and structure.
+
+* Interactive Workout Tracking: Enables real-time logging of sets, reps, and weights, including a built-in rest timer for each set.
+
+* Intelligent Coach's Analysis: Delivers an AI generated summary after each workout to provide feedback on performance and suggestions for improvement.
+
+* Nutritional Goal Setting: Includes a calculator to determine personalized daily targets for calories and macros based on body stats (age, weight, height) and activity level.
+
+* Integrated Food Logging: Features a searchable database to log daily meals and track intake against nutritional targets.
+
+* Comprehensive Activity Dashboard: Displays a calendar view of workouts and nutrition history to visualize progress over time.
+
+## Starting the App
 
 ### 1. Database Setup
 
